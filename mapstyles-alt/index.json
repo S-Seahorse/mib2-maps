@@ -5,6 +5,24 @@
       "name": "iOS 15",
       "description": "The iOS 15-inspired colours from mib2-mapbuilder (made for VW), applied to the Audi files by entry name, with flat land colours. Not yet tried on the car.",
       "base": "audi"
+    },
+    {
+      "id": "quadro",
+      "name": "Quadro",
+      "description": "After map65's Quadro theme, a modern take on Mac OS 8–9 Platinum: white roads with hairline outlines on a platinum desk, lavender motorways, Stickies-yellow main roads and a focus-blue route; warm graphite at night. Not yet tried on the car.",
+      "base": "audi"
+    },
+    {
+      "id": "carta",
+      "name": "Carta",
+      "description": "After map65's Carta theme, an atlas and encyclopaedia look: ivory paper, ultramarine ink and antique gold, atlas-red motorways, gold main roads and height tints; a navy planetarium at night with gold place names. Not yet tried on the car.",
+      "base": "audi"
+    },
+    {
+      "id": "folio",
+      "name": "Folio",
+      "description": "After map65's Folio theme, Garamond-era print and Gray's Anatomy plates: ink on warm paper, arterial-red motorways, venous-blue main roads, an ink-black route and sepia relief; a radiograph at night, bone-white on blue-black film. Not yet tried on the car.",
+      "base": "audi"
     }
   ]
 }

@@ -681,18 +681,25 @@
       const out = emptyEdits();
       if (!section || !model) return out;
       const list = Array.isArray(section) ? section : section.colours || [];
+      // Only values that differ from the files on screen become edits.
       for (const c of list) {
         if (!c || !model.entries.has(c.name)) continue;
+        const base = model.entries.get(c.name);
         const pen = c.outline && normaliseHex(c.outline.colour);
         const brush = c.fill && normaliseHex(c.fill.colour);
         const v = {};
         if (pen) v.pen = { color: pen, style: c.outline.style || 'solid' };
         if (brush) v.brush = { color: brush, style: c.fill.style || 'solid' };
+        if (v.pen && sameSlot(v.pen, base.pen)) delete v.pen;
+        if (v.brush && sameSlot(v.brush, base.brush)) delete v.brush;
         if (v.pen || v.brush) out.entries[c.name] = v;
       }
       if (!Array.isArray(section)) {
-        for (const [i, hex] of Object.entries(section.dtm || {})) if (normaliseHex(hex)) out.dtm[i] = normaliseHex(hex);
-        for (const [k, v] of Object.entries(section.tuning || {})) if (/^\d+$/.test(String(v))) out.tuning[k] = String(v);
+        for (const [i, hex] of Object.entries(section.dtm || {})) {
+          const h = normaliseHex(hex);
+          if (h && model.dtm[i] && model.dtm[i].color !== h) out.dtm[i] = h;
+        }
+        for (const [k, v] of Object.entries(section.tuning || {})) if (/^\d+$/.test(String(v)) && model.tuning.get(k) !== String(v)) out.tuning[k] = String(v);
       }
       return out;
     };
