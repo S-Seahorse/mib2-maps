@@ -125,18 +125,41 @@
     return /\.xml$/.test(plain) ? plain : `${plain}.xml`;
   }
 
+  // Why the last file that couldn't be fetched wasn't there, for the messages:
+  // { kind: 'missing' | 'network' | 'browser', text }.
+  let fetchProblem = null;
+
   async function fetchBytes(path, roots = ROOTS) {
+    let problem = null;
+    const note = (kind, text) => {
+      problem = problem || { kind, text };
+    };
     for (const root of roots) {
+      const url = root + servedName(path);
+      const shown = new URL(url, location.href).pathname;
       try {
-        const res = await fetch(root + servedName(path), { cache: 'no-cache' });
-        if (!res.ok || /text\/html/.test(res.headers.get('content-type') || '')) continue;
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (!res.ok) {
+          note('missing', `the server has no ${shown} (HTTP ${res.status})`);
+          continue;
+        }
+        if (/text\/html/.test(res.headers.get('content-type') || '')) {
+          note('missing', `the server sent a web page instead of ${shown}`);
+          continue;
+        }
         const bytes = new Uint8Array(await res.arrayBuffer());
-        if (!bytes.length) continue;
+        if (!bytes.length) {
+          note('missing', `${shown} is empty`);
+          continue;
+        }
         return { bytes: await gunzipIfNeeded(bytes), root };
-      } catch (_) {
-        /* try the next location */
+      } catch (err) {
+        // fetch fails with a TypeError when the server can't be reached.
+        if (err instanceof TypeError) note('network', `${shown} couldn't be fetched; check that the server is still running`);
+        else note('browser', err.message);
       }
     }
+    fetchProblem = problem;
     return null;
   }
 
@@ -266,7 +289,11 @@
     const filesFrom = style.kind === 'draft' ? styleByKey(style.draft.from) || styleByKey(style.set.id) : style;
     const loaded = filesFrom.kind === 'alt' ? await loadAlt(style.set, filesFrom.alt) : await loadSet(style.set);
     if (!loaded) {
-      toast(`The ${style.set.name} styles could not be loaded from ${style.set.dir}.`, true);
+      // Opened from disk, the page says what to do instead.
+      if (location.protocol !== 'file:') {
+        const why = `The ${style.set.name} styles could not be loaded from ${style.set.dir}${fetchProblem ? `: ${fetchProblem.text}` : ''}`;
+        toast(/[.!?]$/.test(why) ? why : `${why}.`, true);
+      }
       return false;
     }
     state.style = style;
@@ -1355,14 +1382,19 @@
       $('#export-toggle').disabled = true;
       $('.stage').classList.add('is-empty');
       $('[data-source]').textContent = 'Open your MapConfig files to start';
-      $('[data-list]').replaceChildren(
-        el('p', { class: 'empty' }, [
-          'The stock styles could not be loaded. This happens when the page is opened straight from disk. Open the .mxf or .mxf.gz files from a MapConfigs folder with ',
-          el('strong', { text: 'Open files' }),
-          ', or serve the repository folder (for example ',
-          el('code', { text: 'npx http-server' }),
-          ') and open /previewer/.',
-        ])
+      // Built afresh for each place it's shown, since a node can only be in one place.
+      const why = () => {
+        const serve = ['In the repository folder, run ', el('code', { text: 'npm run preview' }), ', which serves it and opens ', el('code', { text: 'http://localhost:8000/previewer/' }), '.'];
+        if (location.protocol === 'file:') return ["Browsers don't let a page opened straight from disk read the style files next to it. ", ...serve];
+        if (fetchProblem && fetchProblem.kind === 'browser') return [`The stock styles could not be loaded: ${fetchProblem.text}`];
+        if (fetchProblem && fetchProblem.kind === 'network') return [`The stock styles could not be loaded: ${fetchProblem.text}.`];
+        const text = fetchProblem ? `: ${fetchProblem.text}` : '';
+        return [`The stock styles could not be loaded${text}. The server needs to serve the whole repository folder, not just previewer/. `, ...serve];
+      };
+      const openFilesNote = (lead) => [lead, el('strong', { text: 'Open files' }), '.'];
+      $('[data-list]').replaceChildren(el('p', { class: 'empty' }, [...why(), ' ', ...openFilesNote('Or open .mxf or .mxf.gz files from a MapConfigs folder with ')]));
+      $('.hu-empty').replaceChildren(
+        el('div', { class: 'hu-empty-text' }, [el('p', {}, why()), el('p', { class: 'subtle' }, openFilesNote('Or drop .mxf or .mxf.gz files here, or use '))])
       );
       return;
     }
