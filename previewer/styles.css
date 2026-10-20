@@ -330,6 +330,10 @@ select, input[type="search"], input[type="text"] {
   padding: 24px;
 }
 .stage.is-empty .hu-empty p { max-width: 34ch; margin: 0; }
+.hu-empty-text { display: grid; gap: 12px; justify-items: center; }
+.stage.is-empty .hu-empty-text p { max-width: 54ch; }
+.hu-empty-text .subtle { color: #9aa5b1; }
+.hu-empty code { background: rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 4px; }
 .stage.is-loading .screen-host { aspect-ratio: 2 / 1; }
 
 .stage-foot { display: flex; flex-direction: column; gap: 10px; }

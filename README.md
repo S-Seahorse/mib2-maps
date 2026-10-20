@@ -17,7 +17,7 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
 | [mapstyles/](mapstyles) | The stock VW Discover Pro styles from the original project (Australian market, revision 2562), kept for reference. |
 | [mapstyles-alt/](mapstyles-alt) | Alternate map styles: one folder of MapConfigs per style, listed in its `index.json`. It starts with an iOS 15 style ported from mib2-mapbuilder. See its [README](mapstyles-alt/README.md). |
 | [previewer/](previewer) | A web app to preview and recolour the styles and export MapConfigs for the head unit. |
-| [utilities/](utilities) | The deploy and screenshot scripts, the builder for the palette-based styles in `mapstyles-alt/`, and CFF image tools. |
+| [utilities/](utilities) | The preview server, the deploy and screenshot scripts, the builder for the palette-based styles in `mapstyles-alt/`, and CFF image tools. |
 | [mib2-mapbuilder/](mib2-mapbuilder) | (submodule) The original TypeScript builder for VW `.mxf` files. It doesn't produce the Audi files. |
 
 ### How the Audi styles differ from the VW ones
@@ -34,11 +34,11 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
 ## Previewing and recolouring the map styles
 [previewer/](previewer/) is a small web app for trying colour changes before they go anywhere near the car. It loads the stock Audi MapConfigs, draws a sample city with their colours, road widths, zoom ranges and camera angles, and exports a MapConfigs folder with your changes.
 
-1. Serve the repo folder and open the previewer (`python3 -m http.server 8000` works too)
+1. In the repo folder, start the previewer:
    ```sh
    npm run preview
    ```
-   then browse to http://localhost:8000/previewer/
+   This serves the repo folder on your computer and opens http://localhost:8000/previewer/ in your browser; Ctrl+C stops it. For another port, use `npm run preview -- --port 8080`. Any web server for the repo folder works too, for example `python3 -m http.server 8000`.
 2. Pick a map style: the stock Audi styles, one of the styles in [mapstyles-alt/](mapstyles-alt), or a draft of your own. **New style** starts a draft from what's on screen; drafts are kept in your browser until you export them.
 3. Click anything on the map, or pick an entry in the colour list, and change its colour. You can preview day and night, the **Standard**, **Satellite** and **Traffic** maps, 2D and 3D, the zoom steps from the zoom tables, and both the MMI screen and the Virtual Cockpit. **Hold to compare** shows the original colours.
 4. Export:
@@ -51,7 +51,7 @@ A change on the Standard map also applies to the satellite and traffic maps wher
 
 The style picker also switches to the VW reference styles. To tweak the output of [mib2-mapbuilder](mib2-mapbuilder) (VW only), pick the VW styles, then use **Open files** and pick the `.mxf` files from `mib2-mapbuilder/rendered` and `mib2-mapbuilder/rendered/1280x640`. **Export → Colour theme** saves only your changes as JSON in the builder's `{ name, outline, fill }` colour format.
 
-Opening `previewer/index.html` straight from disk also works, but browsers block it from reading the style folders, so you'll need to open the files yourself. Edits are kept in your browser until you export or reset them.
+Opening `previewer/index.html` straight from disk doesn't load any styles, because browsers block a page opened that way from reading the style folders; you can only open files yourself with **Open files**. Edits are kept in your browser, for the address you opened it at, until you export or reset them.
 
 ## Deploying to the car
 [deploy.js](utilities/deploy.js) stages a complete map style folder in `deploy/` (the stock Audi styles, with your exported MapConfigs swapped in) and, with `--deploy`, copies it to the head unit. Run it from the repo folder, in any terminal.
