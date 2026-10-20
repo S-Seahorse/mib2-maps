@@ -618,7 +618,7 @@
           'Only colour, visibility and display-tuning values differ from the files you started with,',
           'and the file names match the originals.',
           '',
-          'To try it on the car, unzip this and run utilities/deploy_scp.ps1 -mapConfigs <unzipped folder>,',
+          'To try it on the car, unzip this and run node utilities/deploy.js --map-configs <unzipped folder>,',
           'or copy the MapConfigs folder over the one in the map style folder these files came from',
           'on the head unit. Back up the original first.',
           '',

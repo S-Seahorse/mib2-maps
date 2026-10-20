@@ -1,0 +1,15 @@
+{
+  "name": "mib2-maps",
+  "private": true,
+  "description": "Map style tools for the MIB2 navigation on a 2017 Audi A4 with MMI Navigation plus",
+  "scripts": {
+    "preview": "npx --yes http-server -p 8000 -c-1",
+    "build-styles": "node utilities/build-styles.js",
+    "deploy": "node utilities/deploy.js",
+    "screenshot": "node utilities/screenshot.js",
+    "screenshot:kombi": "node utilities/screenshot.js --kombi"
+  },
+  "engines": {
+    "node": ">=18.3"
+  }
+}

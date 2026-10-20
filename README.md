@@ -17,7 +17,7 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
 | [mapstyles/](mapstyles) | The stock VW Discover Pro styles from the original project (Australian market, revision 2562), kept for reference. |
 | [mapstyles-alt/](mapstyles-alt) | Alternate map styles: one folder of MapConfigs per style, listed in its `index.json`. It starts with an iOS 15 style ported from mib2-mapbuilder. See its [README](mapstyles-alt/README.md). |
 | [previewer/](previewer) | A web app to preview and recolour the styles and export MapConfigs for the head unit. |
-| [utilities/](utilities) | The deploy script, screenshot scripts and CFF image tools. |
+| [utilities/](utilities) | The deploy and screenshot scripts, the builder for the palette-based styles in `mapstyles-alt/`, and CFF image tools. |
 | [mib2-mapbuilder/](mib2-mapbuilder) | (submodule) The original TypeScript builder for VW `.mxf` files. It doesn't produce the Audi files. |
 
 ### How the Audi styles differ from the VW ones
@@ -27,16 +27,16 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
 * **Colours.** The colour entries have the same names as VW's, plus `satcopyright_text_color` and `satcopyright_background_color`. Road widths, zoom ranges and the terrain colours differ.
 
 ### Prerequisites
-* npm, to serve the previewer (and to run the VW builder)
-* PowerShell, for the deploy script
+* [Node.js](https://nodejs.org) 18 or later, with npm: for the deploy and screenshot scripts, the style builder and serving the previewer
+* `ssh` and `scp` (OpenSSH), which come with macOS, Linux and Windows 10 and later
 * Root SSH access to the head unit, set up as the host `mib2` (see below). Getting root on the MMI, for example with patched firmware or the M.I.B. toolbox, is outside this repo.
 
 ## Previewing and recolouring the map styles
 [previewer/](previewer/) is a small web app for trying colour changes before they go anywhere near the car. It loads the stock Audi MapConfigs, draws a sample city with their colours, road widths, zoom ranges and camera angles, and exports a MapConfigs folder with your changes.
 
 1. Serve the repo folder and open the previewer (`python3 -m http.server 8000` works too)
-   ```powershell
-   npx --yes http-server -p 8000 -c-1
+   ```sh
+   npm run preview
    ```
    then browse to http://localhost:8000/previewer/
 2. Pick a map style: the stock Audi styles, one of the styles in [mapstyles-alt/](mapstyles-alt), or a draft of your own. **New style** starts a draft from what's on screen; drafts are kept in your browser until you export them.
@@ -54,24 +54,24 @@ The style picker also switches to the VW reference styles. To tweak the output o
 Opening `previewer/index.html` straight from disk also works, but browsers block it from reading the style folders, so you'll need to open the files yourself. Edits are kept in your browser until you export or reset them.
 
 ## Deploying to the car
-[deploy_scp.ps1](utilities/deploy_scp.ps1) stages a complete map style folder in `.\deploy` (the stock Audi styles, with your exported MapConfigs swapped in) and, with `-deploy`, copies it to the head unit.
+[deploy.js](utilities/deploy.js) stages a complete map style folder in `deploy/` (the stock Audi styles, with your exported MapConfigs swapped in) and, with `--deploy`, copies it to the head unit. Run it from the repo folder, in any terminal.
 
 1. Find the Audi map style folder on the head unit. The script assumes `/mnt/app/navigation/resources/app/audi/aus/`, which hasn't been confirmed on an A4 yet:
-   ```powershell
-   .\utilities\deploy_scp.ps1 -list
+   ```sh
+   node utilities/deploy.js --list
    ```
-2. Pick what to deploy: a style in `mapstyles-alt/` (`-style ios-15`), or a **MapConfigs folder** exported from the previewer and unzipped (`-mapConfigs .\path\to\unzipped-export`).
-3. Stage it and look over `.\deploy` before going further:
-   ```powershell
-   .\utilities\deploy_scp.ps1 -style ios-15
+2. Pick what to deploy: a style in `mapstyles-alt/` (`--style ios-15`), or a **MapConfigs folder** exported from the previewer and unzipped (`--map-configs path/to/unzipped-export`).
+3. Stage it and look over `deploy/` before going further:
+   ```sh
+   node utilities/deploy.js --style ios-15
    ```
-4. Deploy, keeping a copy of what's on the head unit in `.\backup`:
-   ```powershell
-   .\utilities\deploy_scp.ps1 -style ios-15 -destPath /mnt/app/navigation/resources/app/audi/aus/ -deploy -backup
+4. Deploy, keeping a copy of what's on the head unit in `backup/`:
+   ```sh
+   node utilities/deploy.js --style ios-15 --dest-path /mnt/app/navigation/resources/app/audi/aus/ --deploy --backup
    ```
-   The script stops if `-destPath` doesn't exist on the head unit. It then remounts `/net/mmx/mnt/app` read-write, copies the files, remounts it read-only and restarts `AppStartATF`. Those steps come from the original VW workflow; the A4 runs the same MIB2 High platform, but they haven't been tried on it yet, so keep the backup.
+   The script stops if `--dest-path` doesn't exist on the head unit, or if the backup doesn't finish. It then remounts `/net/mmx/mnt/app` read-write, copies the files, remounts it read-only and restarts `AppStartATF` (not if the copy failed). Those steps come from the original VW workflow; the A4 runs the same MIB2 High platform, but they haven't been tried on it yet, so keep the backup.
 
-To deploy the VW styles as the original project did, use `-styles mapstyles -vwBuilder -destPath /mnt/app/navigation/resources/app/vw/aus/`.
+`node utilities/deploy.js --help` lists the options. To deploy the VW styles as the original project did, use `--styles mapstyles --vw-builder --dest-path /mnt/app/navigation/resources/app/vw/aus/`.
 
 ### Configuring mib2 SSH host
 Add the below to your ~/.ssh/config file
@@ -83,4 +83,8 @@ Host mib2
 ```
 
 ### Screenshots
-[screenshot-mib.ps1](utilities/screenshot-mib.ps1) saves a screenshot of the main display to `.\screenshots`. [screenshot-kombi.ps1](utilities/screenshot-kombi.ps1) switches the main display to the VW cluster map to capture it; that display context is VW's and hasn't been checked on the Audi Virtual Cockpit.
+[screenshot.js](utilities/screenshot.js) saves a screenshot of the main display to `screenshots/`:
+```sh
+node utilities/screenshot.js
+```
+With `--kombi` it switches the main display to the VW cluster map to capture it; that display context is VW's and hasn't been checked on the Audi Virtual Cockpit.

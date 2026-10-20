@@ -43,9 +43,18 @@ To update a style that's already here, pick it in the previewer, make your chang
 
 To remove a style, delete its folder and its entry in `index.json`.
 
+### Styles built from palettes
+**quadro**, **carta** and **folio** are built from the palettes in [utilities/palettes](../utilities/palettes): a few dozen colours each for day and night, which [build-styles.js](../utilities/build-styles.js) spreads over the stock Audi files (its comments list what each palette colour covers). To change one of these styles, edit its palette and rebuild it:
+```sh
+node utilities/build-styles.js quadro
+```
+That rewrites the style's files and its entry in `index.json`, and leaves files that haven't changed alone. With no names it builds every palette, and `--check` only reports what would change. For a new palette style, copy a palette to `utilities/palettes/<id>.js`, give it a `name` and `description`, change the colours and build it.
+
+Changes made to these styles in the previewer are lost the next time their palette is built, so make lasting changes in the palette.
+
 ## Deploying a style
-```powershell
-.\utilities\deploy_scp.ps1 -style ios-15 -destPath /mnt/app/navigation/resources/app/audi/aus/ -deploy -backup
+```sh
+node utilities/deploy.js --style ios-15 --dest-path /mnt/app/navigation/resources/app/audi/aus/ --deploy --backup
 ```
 See the main [README](../README.md#deploying-to-the-car) for the head-unit folder and the first-run checks.
 
@@ -53,7 +62,7 @@ See the main [README](../README.md#deploying-to-the-car) for the head-unit folde
 None of these has been tried on the car yet. All of them change colours only: every entry keeps the stock Audi file's shown, hidden and pattern settings, and the satellite map keeps Audi's white labels for legibility over imagery.
 
 * **ios-15**: the iOS 15-inspired colours from [mib2-mapbuilder](../mib2-mapbuilder) (made for VW Discover Pro), applied to the Audi files by entry name, with flat land colours in place of Audi's terrain shading.
-* **quadro**, **carta** and **folio** take their palettes from the three themes of the [map65](https://github.com/S-Seahorse/map65) exam planner (`css/skin-*.css`). Each traffic map is the same style washed towards the land colour, so the traffic colours stand out, and traffic uses each theme's own success, warning and danger colours.
+* **quadro**, **carta** and **folio** (built from [palettes](../utilities/palettes), see above) take their colours from the three themes of the [map65](https://github.com/S-Seahorse/map65) exam planner (`css/skin-*.css`). Each traffic map is the same style washed towards the land colour, so the traffic colours stand out, and traffic uses each theme's own success, warning and danger colours.
   * **quadro**: after Quadro, a modern take on Mac OS 8–9 Platinum. By day, white roads with hairline outlines on a platinum desk, lavender motorways (the selection highlight), Stickies-yellow main roads and a focus-blue route. At night, near-black warm graphite with the theme's lighter lavender and blue.
   * **carta**: after Carta, an atlas and encyclopaedia look. By day, ivory paper with ultramarine ink, atlas-red motorways, antique-gold main roads, an ultramarine route, hypsometric height tints and a gold-lit horizon. At night, the planetarium: navy land and water with gold motorways and gold place names.
   * **folio**: after Folio, Garamond-era print and Gray's Anatomy plates. By day, ink on warm paper with arterial-red motorways, venous-blue main roads, an ink-black route and relief in sepia. At night, the radiograph: blue-black film with bone-white streets and route, red motorways and blue main roads.
