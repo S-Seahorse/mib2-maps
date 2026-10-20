@@ -16,6 +16,21 @@ If you would like to build the maps for yourself, simply clone the repo and run 
 ### Prerequisites
 * npm
 
+## Previewing and recolouring the map styles
+[previewer/](previewer/) is a small web app for trying colour changes before they go anywhere near the car. It loads the MapConfig files in [mapstyles/MapConfigs](mapstyles/MapConfigs), draws a sample city with their colours, road widths and zoom ranges, and exports a MapConfigs folder with your changes.
+
+1. Serve the repo folder and open the previewer (npm is already a prerequisite; `python3 -m http.server 8000` works too)
+   ```powershell
+   npx --yes http-server -p 8000 -c-1
+   ```
+   then browse to http://localhost:8000/previewer/
+2. Click anything on the map, or pick an entry in the colour list, and change its colour. Day and night (`_0` / `_1` files), 2D and 3D, the zoom steps from `pcconfig/zoomlevel_instance0.xml`, and both screen sizes can be previewed. Hold **Hold to compare** to see the original colours.
+3. **Export → MapConfigs folder** downloads a .zip with every loaded file. Only the colours you changed differ from the originals, so it can replace `deploy/MapConfigs` or be copied to `/mnt/app/navigation/resources/app/vw/<region>/MapConfigs` on the head unit (back up the original first).
+
+To tweak the output of [mib2-mapbuilder](mib2-mapbuilder) instead of the stock files, use **Open files** and pick the `.mxf` files from `mib2-mapbuilder/rendered` and `mib2-mapbuilder/rendered/1280x640`. **Export → Colour theme** saves only your changes as JSON in the builder's `{ name, outline, fill }` colour format, ready to paste into `mib2-mapbuilder/src/config/colours/`.
+
+Opening `previewer/index.html` straight from disk also works, but browsers block it from reading `mapstyles/`, so you'll need to open the files yourself. Edits are kept in your browser until you export or reset them.
+
 ## Build/Deploy instructions
 ### Using the Deploy powershell script
 The Deploy script will compile the .mxf files for both Day, Night mode as well as Kombi and High-Resolution headunit formats (800x480 and 1280x640).
