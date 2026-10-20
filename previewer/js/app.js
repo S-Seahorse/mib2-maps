@@ -120,7 +120,7 @@
   // A hosted copy may only be able to serve these files unpacked, named .xml
   // (window.MIB_MAPSTYLES_XML): x.mxf.gz becomes x.mxf.xml.
   function servedName(path) {
-    if (!window.MIB_MAPSTYLES_XML) return path;
+    if (!window.MIB_MAPSTYLES_XML || !/\.(gz|mxf|fcx)$/.test(path)) return path;
     const plain = path.replace(/\.gz$/, '');
     return /\.xml$/.test(plain) ? plain : `${plain}.xml`;
   }
