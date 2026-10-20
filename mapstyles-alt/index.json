@@ -1,0 +1,10 @@
+{
+  "styles": [
+    {
+      "id": "ios-15",
+      "name": "iOS 15",
+      "description": "The iOS 15-inspired colours from mib2-mapbuilder (made for VW), applied to the Audi files by entry name, with flat land colours. Not yet tried on the car.",
+      "base": "audi"
+    }
+  ]
+}

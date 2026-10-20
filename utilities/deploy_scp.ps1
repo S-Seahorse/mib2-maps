@@ -2,7 +2,8 @@
 #
 # Set up for the 2017 Audi A4 with MMI Navigation plus (Australia): it stages the stock Audi
 # styles in mapstyles-audidefault, swaps in MapConfigs exported from the previewer
-# (-mapConfigs), and copies the result to the head unit over SSH.
+# (-mapConfigs) or an alternate style from mapstyles-alt (-style), and copies the result to the
+# head unit over SSH.
 #
 # The Audi style folder on the head unit hasn't been confirmed on an A4 yet. Run with -list to
 # see the map style folders on the unit, then pass the right one with -destPath. Deploying stops
@@ -13,6 +14,7 @@ param (
   [switch] $list = $false,
   [string] $styles = 'mapstyles-audidefault',
   [string] $mapConfigs = '',
+  [string] $style = '',
   [string] $destPath = '/mnt/app/navigation/resources/app/audi/aus/',
   [switch] $vwBuilder = $false
 )
@@ -28,6 +30,20 @@ if ($list) {
 
 #directories
 $projectRoot = "$(&git rev-parse --show-toplevel)";
+
+# An alternate style is a MapConfigs folder in mapstyles-alt, listed in its index.json
+# with the stock set it's built on.
+if ($style) {
+  $index = Get-Content (Join-Path $projectRoot 'mapstyles-alt/index.json') -Raw | ConvertFrom-Json;
+  $entry = $index.styles | Where-Object { $_.id -eq $style };
+  if (-not $entry) {
+    Write-Error "There's no style '$style' in mapstyles-alt/index.json.";
+    exit 1;
+  }
+  $mapConfigs = Join-Path $projectRoot "mapstyles-alt/$style";
+  if (-not $PSBoundParameters.ContainsKey('styles') -and $entry.base -eq 'vw') { $styles = 'mapstyles' }
+  Write-Host "Style: $($entry.name) (mapstyles-alt/$style)";
+}
 
 $styleSrc = Join-Path $projectRoot $styles;
 $stagingDir = "$projectRoot/deploy";

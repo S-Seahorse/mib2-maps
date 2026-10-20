@@ -1,10 +1,12 @@
-// Boots the previewer: loads a stock style set (the Audi A4 styles by default),
-// wires the toolbar, keeps edits with undo, and exports a ready-to-copy
-// MapConfigs folder.
+// Boots the previewer: loads a map style (the stock Audi A4 styles, an
+// alternate style from mapstyles-alt/, or a draft made in this browser), wires
+// the toolbar, keeps edits with undo, and exports a ready-to-copy MapConfigs
+// folder or a style folder for mapstyles-alt/.
 (function (MIB) {
   'use strict';
   const { el, store, gunzipIfNeeded, decodeText, encodeText, makeZip, saveFile, gzip, normaliseHex } = MIB.util;
   const { sameSlot } = MIB.editorHelpers;
+  const { ALT_DIR } = MIB.library;
 
   // The style sets in this repository. Each MapConfig file is a day (_0) or
   // night (_1) config for one map type; `screens` are the displays the
@@ -13,6 +15,7 @@
     {
       id: 'audi',
       name: 'Audi A4 · MMI Navigation plus',
+      stockName: 'Stock Audi styles',
       dir: 'mapstyles-audidefault/',
       files: [
         'MapConfigs/mapconfig_default_0_DTM.mxf.gz',
@@ -33,6 +36,7 @@
     {
       id: 'vw',
       name: 'VW Discover Pro (reference)',
+      stockName: 'Stock VW styles',
       dir: 'mapstyles/',
       files: [
         'MapConfigs/1280x640/mapconfig_default_0_DTM.mxf.gz',
@@ -61,6 +65,7 @@
   // elsewhere can set window.MIB_STYLES_ROOT to where those folders are.
   const ROOTS = window.MIB_STYLES_ROOT != null ? [window.MIB_STYLES_ROOT] : ['../', ''];
   const STORE_KEY = 'mib2-style-lab:v2:';
+  const LAST_STYLE_KEY = 'mib2-style-lab:style';
   const VARIANTS = ['default', 'sat', 'traffic', 'kombi'];
   const VARIANT_LABELS = { default: 'Standard', sat: 'Satellite', traffic: 'Traffic', kombi: 'Cluster' };
 
@@ -76,7 +81,10 @@
 
   const state = {
     set: STYLE_SETS[0],
-    loaded: {}, // set id -> { files, fontDefs, zoomBy, root }
+    style: null, // { key, kind: 'stock' | 'alt' | 'draft' | 'custom', set, name, alt?, draft? }
+    alts: [], // styles listed in mapstyles-alt/index.json
+    drafts: [], // styles made with "New style", kept in this browser
+    loaded: {}, // set id or alt:<id> -> { files, fontDefs, zoomBy, root, missing }
     files: [], // { path, name, mode, variant, screen, model, gz }
     fontDefs: null,
     zoomBy: {},
@@ -188,24 +196,94 @@
     return loaded;
   }
 
-  async function useSet(id) {
-    const set = STYLE_SETS.find((s) => s.id === id) || STYLE_SETS[0];
+  // An alternate style replaces some or all of a stock set's MapConfigs with
+  // the files in mapstyles-alt/<id>/; fonts and zoom tables stay the set's own.
+  async function loadAlt(set, alt) {
+    const key = `alt:${alt.id}`;
+    if (state.loaded[key]) return state.loaded[key];
+    const stock = await loadSet(set);
+    if (!stock) return null;
+    const plain = (p) => p.replace(/\.gz$/, '');
+    const listed = alt.files ? new Set(alt.files.map(plain)) : null;
+    const missing = [];
+    const files = await Promise.all(
+      stock.files.map(async (f) => {
+        if (listed && !listed.has(f.path)) return f;
+        const dir = `${ALT_DIR}${alt.id}/`;
+        // Styles are saved with the stock names (.mxf.gz); an unpacked .mxf is read too.
+        let gz = true;
+        let r = await fetchBytes(`${dir}${f.path}.gz`, [stock.root]);
+        if (!r) {
+          gz = false;
+          r = await fetchBytes(`${dir}${f.path}`, [stock.root]);
+        }
+        if (!r) {
+          missing.push(f.name);
+          return f;
+        }
+        try {
+          return fileRecord(set, f.path, decodeText(r.bytes), gz);
+        } catch (err) {
+          missing.push(f.name);
+          return f;
+        }
+      })
+    );
+    const loaded = Object.assign({}, stock, { files, missing });
+    state.loaded[key] = loaded;
+    return loaded;
+  }
+
+  async function loadIndex() {
+    if (location.protocol === 'file:') return [];
+    const r = await fetchBytes(`${ALT_DIR}index.json`);
+    if (!r) return [];
+    try {
+      return MIB.library.parseIndex(decodeText(r.bytes)).filter((s) => STYLE_SETS.some((set) => set.id === s.base));
+    } catch (err) {
+      toast(err.message || 'mapstyles-alt/index.json could not be read.', true);
+      return [];
+    }
+  }
+
+  // Every style the picker offers, grouped by the stock set it's built on.
+  function allStyles() {
+    const out = [];
+    for (const set of STYLE_SETS) {
+      out.push({ key: set.id, kind: 'stock', set, name: set.stockName });
+      for (const alt of state.alts.filter((a) => a.base === set.id)) out.push({ key: `alt:${alt.id}`, kind: 'alt', set, name: alt.name, alt });
+      for (const draft of state.drafts.filter((d) => d.base === set.id)) out.push({ key: `draft:${draft.id}`, kind: 'draft', set, name: draft.name, draft });
+    }
+    return out;
+  }
+
+  const styleByKey = (key) => allStyles().find((s) => s.key === key) || null;
+
+  async function useStyle(key) {
+    const style = styleByKey(key) || styleByKey(STYLE_SETS[0].id);
     commitPending();
-    const loaded = await loadSet(set);
+    // A draft shows the files of the style it started from, with its own edits.
+    const filesFrom = style.kind === 'draft' ? styleByKey(style.draft.from) || styleByKey(style.set.id) : style;
+    const loaded = filesFrom.kind === 'alt' ? await loadAlt(style.set, filesFrom.alt) : await loadSet(style.set);
     if (!loaded) {
-      toast(`The ${set.name} styles could not be loaded from ${set.dir}.`, true);
+      toast(`The ${style.set.name} styles could not be loaded from ${style.set.dir}.`, true);
       return false;
     }
-    state.set = set;
+    state.style = style;
+    state.set = style.set;
     state.files = loaded.files;
     state.fontDefs = loaded.fontDefs;
     state.zoomBy = loaded.zoomBy;
-    state.source = set.id;
-    if (!set.screens.some((s) => s.id === state.screen)) state.screen = set.screens[0].id;
+    state.source = style.key;
+    store.set(LAST_STYLE_KEY, style.key);
+    if (!style.set.screens.some((s) => s.id === state.screen)) state.screen = style.set.screens[0].id;
     $('.stage').classList.remove('is-empty');
     restoreEdits();
     pickAvailable();
     afterSourceChange();
+    if (loaded.missing && loaded.missing.length) {
+      toast(`${loaded.missing.length} of ${filesFrom.name}'s files weren't found in ${ALT_DIR}${filesFrom.alt.id}/, so the stock ones are shown instead.`, true);
+    }
     return true;
   }
 
@@ -250,6 +328,7 @@
     if (fontDefs) state.fontDefs = fontDefs;
     if (!Object.keys(state.zoomBy).length) state.zoomBy = Object.fromEntries(state.set.screens.map((s) => [s.id, FALLBACK_ZOOM]));
     state.source = `custom:${state.set.id}:${files.map((f) => f.path).sort().join('|')}`;
+    state.style = { key: state.source, kind: 'custom', set: state.set, name: 'Your files' };
     restoreEdits();
     pickAvailable();
     afterSourceChange();
@@ -469,7 +548,12 @@
     persistTimer = setTimeout(persist, 500);
   }
 
+  // Edits saved in this browser for the style on screen. Only the first load
+  // mentions them; switching styles just brings each style's edits back.
+  let announcedRestore = false;
   function restoreEdits() {
+    const announce = !announcedRestore;
+    announcedRestore = true;
     const saved = store.get(STORE_KEY + state.source);
     state.history = [];
     state.future = [];
@@ -479,7 +563,7 @@
         for (const [variant, e] of Object.entries(saved[mode] || {})) state.edits[mode][variant] = Object.assign(emptyEdits(), e);
       }
       const n = countEdits();
-      if (n) setTimeout(() => toast(`Restored ${n} unsaved ${n === 1 ? 'change' : 'changes'} from your last visit.`), 300);
+      if (n && announce) setTimeout(() => toast(`Restored ${n} unsaved ${n === 1 ? 'change' : 'changes'} from your last visit.`), 300);
     }
   }
 
@@ -648,6 +732,149 @@
     toast('All colours are back to the originals. Undo brings your changes back.');
   }
 
+  // ---- map styles -----------------------------------------------------------------
+
+  function renderPicker() {
+    const picker = $('#style-set');
+    const current = state.style ? state.style.key : STYLE_SETS[0].id;
+    const groups = STYLE_SETS.map((set) =>
+      el(
+        'optgroup',
+        { label: set.name },
+        allStyles()
+          .filter((s) => s.set === set)
+          .map((s) => el('option', { value: s.key, text: s.kind === 'draft' ? `${s.name} (draft)` : s.name }))
+      )
+    );
+    if (state.style && state.style.kind === 'custom') groups.unshift(el('option', { value: current, text: 'Your files', disabled: true }));
+    picker.replaceChildren(...groups);
+    picker.value = current;
+  }
+
+  // Packs the style on screen as a folder for mapstyles-alt/, with an
+  // index.json that lists it beside the styles already there.
+  async function exportStyle() {
+    const style = state.style;
+    if (!style || style.kind === 'stock' || style.kind === 'custom') {
+      openStyleDialog('create', { thenExport: true });
+      return;
+    }
+    commitPending();
+    const meta = style.kind === 'alt' ? style.alt : style.draft;
+    const entry = { id: meta.id, name: meta.name, description: meta.description || '', base: state.set.id };
+    const index = MIB.library.indexWith(state.alts, entry);
+    const files = [{ path: 'index.json', data: encodeText(`${JSON.stringify(index, null, 2)}\n`) }];
+    for (const f of state.files) {
+      let data = encodeText(MIB.mxf.serialize(f.model, editsForFile(f)));
+      let path = `${meta.id}/${f.path}`;
+      if (f.gz) {
+        data = await gzip(data);
+        path += '.gz';
+      }
+      files.push({ path, data });
+    }
+    await save(`${meta.id}.zip`, await makeZip(files));
+    toast(`Unzip ${meta.id}.zip into ${ALT_DIR} (it replaces index.json) to add “${meta.name}” to the style picker.`);
+  }
+
+  let dialogMode = null;
+  let dialogThen = null;
+
+  function openStyleDialog(mode, opts = {}) {
+    const dialog = $('#style-dialog');
+    if (mode === 'create' && state.style && state.style.kind === 'custom') {
+      toast('New styles start from a stock or alternate style. Use Back to stock files, or put your files in a mapstyles-alt/ folder.', true);
+      return;
+    }
+    dialogMode = mode;
+    dialogThen = opts.thenExport ? exportStyle : null;
+    const draft = mode === 'edit' && state.style.kind === 'draft' ? state.style.draft : null;
+    const from = state.style ? state.style.name : 'the stock styles';
+    $('#style-dialog-title').textContent = draft ? 'Style details' : 'New map style';
+    $('[data-dialog-intro]').textContent = draft
+      ? 'Rename the draft or change its description. Its folder name stays the same.'
+      : `Starts from ${from}, including any changes on screen. The new style is kept in this browser; use Export → Map style folder to add it to ${ALT_DIR}.`;
+    $('#style-name').value = draft ? draft.name : '';
+    $('#style-desc').value = draft ? draft.description || '' : '';
+    $('#style-save').textContent = draft ? 'Save' : opts.thenExport ? 'Create and export' : 'Create style';
+    const del = $('#style-delete');
+    del.hidden = !draft;
+    del.textContent = 'Delete draft';
+    del.dataset.armed = '';
+    updateFolderNote();
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    $('#style-name').focus();
+  }
+
+  function takenIds() {
+    return new Set([...state.alts.map((a) => a.id), ...state.drafts.map((d) => d.id)]);
+  }
+
+  function updateFolderNote() {
+    const draft = dialogMode === 'edit' && state.style.kind === 'draft' ? state.style.draft : null;
+    const id = draft ? draft.id : MIB.library.folderName($('#style-name').value, takenIds());
+    $('[data-dialog-folder]').textContent = `Folder: ${ALT_DIR}${id}/`;
+  }
+
+  function closeStyleDialog() {
+    const dialog = $('#style-dialog');
+    if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+    else dialog.removeAttribute('open');
+  }
+
+  function wireStyleDialog() {
+    $('#style-name').addEventListener('input', updateFolderNote);
+    $('#style-cancel').addEventListener('click', closeStyleDialog);
+    $('#style-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = $('#style-name').value.trim();
+      const description = $('#style-desc').value.trim();
+      if (!name) {
+        $('#style-name').focus();
+        return;
+      }
+      if (dialogMode === 'edit' && state.style.kind === 'draft') {
+        const draft = state.drafts.find((d) => d.id === state.style.draft.id);
+        Object.assign(draft, { name, description });
+        MIB.library.saveDrafts(state.drafts);
+        state.style = styleByKey(state.style.key);
+        closeStyleDialog();
+        updateChrome();
+        toast(`Saved “${name}”.`);
+        return;
+      }
+      commitPending();
+      // The draft starts with the files and changes on screen.
+      const from = state.style && state.style.kind === 'draft' ? state.style.draft.from : state.style && state.style.kind !== 'custom' ? state.style.key : state.set.id;
+      const draft = { id: MIB.library.folderName(name, takenIds()), name, description, base: state.set.id, from, created: new Date().toISOString() };
+      state.drafts.push(draft);
+      MIB.library.saveDrafts(state.drafts);
+      if (countEdits()) store.set(STORE_KEY + `draft:${draft.id}`, state.edits);
+      const then = dialogThen;
+      closeStyleDialog();
+      await useStyle(`draft:${draft.id}`);
+      toast(`Created “${name}”. It's kept in this browser until you export it as a map style folder.`);
+      if (then) then();
+    });
+    $('#style-delete').addEventListener('click', async () => {
+      const del = $('#style-delete');
+      // Two clicks: the first asks, the second deletes.
+      if (!del.dataset.armed) {
+        del.dataset.armed = '1';
+        del.textContent = 'Click again to delete it and its changes';
+        return;
+      }
+      const draft = state.style.draft;
+      state.drafts = state.drafts.filter((d) => d.id !== draft.id);
+      MIB.library.saveDrafts(state.drafts);
+      store.remove(STORE_KEY + `draft:${draft.id}`);
+      closeStyleDialog();
+      await useStyle(styleByKey(draft.from) ? draft.from : state.set.id);
+      toast(`Deleted the draft “${draft.name}”.`);
+    });
+  }
+
   // ---- preview ------------------------------------------------------------------
 
   function routeNames() {
@@ -759,15 +986,20 @@
     $('#redo').disabled = !state.future.length;
     const n = countEdits();
     $('[data-edit-count]').textContent = n ? `${n} ${n === 1 ? 'change' : 'changes'}` : 'No changes yet';
-    const custom = state.source.startsWith('custom:');
+    const style = state.style || { kind: 'stock' };
     const count = state.files.length;
     const days = state.files.filter((f) => f.mode === 'day').length;
-    $('[data-source]').textContent = custom
-      ? `Your files · ${count} MapConfig ${count === 1 ? 'file' : 'files'} (${days} day, ${count - days} night)`
-      : `Stock styles from ${state.set.dir}MapConfigs · ${count} files`;
-    $('#back-to-stock').hidden = !custom || !state.loaded[state.set.id];
-    const picker = $('#style-set');
-    picker.value = state.set.id;
+    const source = $('[data-source]');
+    if (style.kind === 'custom') source.textContent = `Your files · ${count} MapConfig ${count === 1 ? 'file' : 'files'} (${days} day, ${count - days} night)`;
+    else if (style.kind === 'alt') source.textContent = `${ALT_DIR}${style.alt.id}/${style.alt.description ? ` · ${style.alt.description}` : ''}`;
+    else if (style.kind === 'draft') {
+      const from = styleByKey(style.draft.from);
+      source.textContent = `Draft in this browser, started from ${from ? from.name : 'the stock styles'}${style.draft.description ? ` · ${style.draft.description}` : ''}`;
+    } else source.textContent = `Stock styles from ${state.set.dir}MapConfigs · ${count} files`;
+    source.title = source.textContent;
+    $('#back-to-stock').hidden = style.kind !== 'custom';
+    renderPicker();
+    $('#style-details').hidden = style.kind !== 'draft';
     for (const b of document.querySelectorAll('[data-set-mode]')) {
       b.setAttribute('aria-pressed', String(b.dataset.setMode === state.mode));
       b.disabled = !state.files.some((f) => f.mode === b.dataset.setMode);
@@ -939,10 +1171,12 @@
 
   function wireToolbar() {
     const picker = $('#style-set');
-    picker.replaceChildren(...STYLE_SETS.map((s) => el('option', { value: s.id, text: s.name })));
     picker.addEventListener('change', async () => {
-      if (!(await useSet(picker.value))) picker.value = state.set.id;
+      if (!(await useStyle(picker.value))) renderPicker();
     });
+    $('#new-style').addEventListener('click', () => openStyleDialog('create'));
+    $('#style-details').addEventListener('click', () => openStyleDialog('edit'));
+    wireStyleDialog();
     for (const b of document.querySelectorAll('[data-set-mode]')) {
       b.addEventListener('click', () => {
         commitPending();
@@ -1013,7 +1247,7 @@
       if (filePicker.files.length) openFiles([...filePicker.files]);
       filePicker.value = '';
     });
-    $('#back-to-stock').addEventListener('click', () => useSet(state.set.id));
+    $('#back-to-stock').addEventListener('click', () => useStyle(store.get(LAST_STYLE_KEY) || state.set.id));
 
     const menu = $('#export-menu');
     const toggle = $('#export-toggle');
@@ -1038,6 +1272,10 @@
     $('#export-theme').addEventListener('click', () => {
       close();
       exportTheme();
+    });
+    $('#export-style').addEventListener('click', () => {
+      close();
+      exportStyle();
     });
     const themePicker = $('#theme-picker');
     $('#import-theme').addEventListener('click', () => {
@@ -1101,7 +1339,11 @@
     recentre();
 
     $('.stage').classList.remove('is-loading');
-    const ok = await useSet(STYLE_SETS[0].id);
+    state.drafts = MIB.library.drafts();
+    state.alts = await loadIndex();
+    const last = store.get(LAST_STYLE_KEY);
+    let ok = await useStyle(last && styleByKey(last) ? last : STYLE_SETS[0].id);
+    if (!ok && last) ok = await useStyle(STYLE_SETS[0].id);
     if (!ok) {
       $('#export-toggle').disabled = true;
       $('.stage').classList.add('is-empty');

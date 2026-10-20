@@ -44,6 +44,10 @@
           <span>A .zip of every loaded file with your colours, ready to copy to the head unit</span>
         </button>
         <label class="menu-check"><input type="checkbox" id="export-plain"> Save unpacked (.mxf) instead of keeping the original .mxf.gz names</label>
+        <button type="button" class="menu-item" id="export-style">
+          <strong>Map style folder</strong>
+          <span>This style as a folder for mapstyles-alt/, with an updated index.json, so it appears in the style picker</span>
+        </button>
         <button type="button" class="menu-item" id="export-theme">
           <strong>Colour theme</strong>
           <span>Just your changes, as JSON in the mib2-mapbuilder colour format</span>
@@ -59,9 +63,13 @@
 <main class="layout">
   <section class="stage is-loading" aria-label="Map preview">
     <div class="stage-bar">
-      <label class="select-label set-picker" for="style-set"><span class="visually-hidden">Style set</span>
-        <select id="style-set"></select>
-      </label>
+      <div class="style-picker">
+        <label class="select-label set-picker" for="style-set"><span class="visually-hidden">Map style</span>
+          <select id="style-set"></select>
+        </label>
+        <button type="button" class="button" id="new-style">New style</button>
+        <button type="button" class="button ghost" id="style-details" hidden>Details</button>
+      </div>
       <div class="seg" role="group" aria-label="Day or night map">
         <button type="button" data-set-mode="day" aria-pressed="true">Day</button>
         <button type="button" data-set-mode="night" aria-pressed="false">Night</button>
@@ -136,6 +144,27 @@
   </aside>
 </main>
 
+<dialog id="style-dialog" class="dialog" aria-labelledby="style-dialog-title">
+  <form id="style-form" class="dialog-body">
+    <h2 id="style-dialog-title">New map style</h2>
+    <p class="dialog-intro" data-dialog-intro></p>
+    <label class="field" for="style-name">
+      <span>Name</span>
+      <input type="text" id="style-name" required maxlength="60" autocomplete="off" placeholder="e.g. Night blue">
+    </label>
+    <label class="field" for="style-desc">
+      <span>Description <em>(optional)</em></span>
+      <textarea id="style-desc" rows="3" maxlength="300" placeholder="What makes this style different"></textarea>
+    </label>
+    <p class="field-note" data-dialog-folder></p>
+    <div class="dialog-actions">
+      <button type="button" class="button ghost danger-text" id="style-delete" hidden>Delete draft</button>
+      <button type="button" class="button ghost" id="style-cancel">Cancel</button>
+      <button type="submit" class="button primary" id="style-save">Create style</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" role="status" aria-live="polite"></div>
 
 <script src="js/util.js"></script>
@@ -144,6 +173,7 @@
 <script src="js/scene.js"></script>
 <script src="js/render.js"></script>
 <script src="js/editor.js"></script>
+<script src="js/library.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

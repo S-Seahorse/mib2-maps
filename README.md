@@ -15,6 +15,7 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
 |---|---|
 | [mapstyles-audidefault/](mapstyles-audidefault) | The stock Audi map styles (`StyleDB_MIB_AUDI`, MIB2-H, Australian market, revision 2811). The starting point for the A4. |
 | [mapstyles/](mapstyles) | The stock VW Discover Pro styles from the original project (Australian market, revision 2562), kept for reference. |
+| [mapstyles-alt/](mapstyles-alt) | Alternate map styles: one folder of MapConfigs per style, listed in its `index.json`. It starts with an iOS 15 style ported from mib2-mapbuilder. See its [README](mapstyles-alt/README.md). |
 | [previewer/](previewer) | A web app to preview and recolour the styles and export MapConfigs for the head unit. |
 | [utilities/](utilities) | The deploy script, screenshot scripts and CFF image tools. |
 | [mib2-mapbuilder/](mib2-mapbuilder) | (submodule) The original TypeScript builder for VW `.mxf` files. It doesn't produce the Audi files. |
@@ -38,8 +39,13 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
    npx --yes http-server -p 8000 -c-1
    ```
    then browse to http://localhost:8000/previewer/
-2. Click anything on the map, or pick an entry in the colour list, and change its colour. You can preview day and night, the **Standard**, **Satellite** and **Traffic** maps, 2D and 3D, the zoom steps from the zoom tables, and both the MMI screen and the Virtual Cockpit. **Hold to compare** shows the original colours.
-3. **Export → MapConfigs folder** downloads a .zip with every MapConfig file. Only the values you changed differ from the originals, and the files keep their original `.mxf.gz` names, so they replace the files on the head unit.
+2. Pick a map style: the stock Audi styles, one of the styles in [mapstyles-alt/](mapstyles-alt), or a draft of your own. **New style** starts a draft from what's on screen; drafts are kept in your browser until you export them.
+3. Click anything on the map, or pick an entry in the colour list, and change its colour. You can preview day and night, the **Standard**, **Satellite** and **Traffic** maps, 2D and 3D, the zoom steps from the zoom tables, and both the MMI screen and the Virtual Cockpit. **Hold to compare** shows the original colours.
+4. Export:
+   * **Map style folder** downloads the style as a folder for [mapstyles-alt/](mapstyles-alt), with an `index.json` that lists it beside the styles already there. Unzip it into `mapstyles-alt/` (replacing `index.json`) and it appears in the style picker.
+   * **MapConfigs folder** downloads just the MapConfig files, to deploy straight away.
+
+   Either way, only the values you changed differ from the files you started with, and the files keep their original `.mxf.gz` names, so they replace the files on the head unit.
 
 A change on the Standard map also applies to the satellite and traffic maps wherever they used the same colour as the Standard map; a change made on one of those maps applies to that map only. That way the traffic map keeps its muted colours unless you change them there.
 
@@ -54,14 +60,14 @@ Opening `previewer/index.html` straight from disk also works, but browsers block
    ```powershell
    .\utilities\deploy_scp.ps1 -list
    ```
-2. Export **MapConfigs folder** from the previewer and unzip it.
+2. Pick what to deploy: a style in `mapstyles-alt/` (`-style ios-15`), or a **MapConfigs folder** exported from the previewer and unzipped (`-mapConfigs .\path\to\unzipped-export`).
 3. Stage it and look over `.\deploy` before going further:
    ```powershell
-   .\utilities\deploy_scp.ps1 -mapConfigs .\path\to\unzipped-export
+   .\utilities\deploy_scp.ps1 -style ios-15
    ```
 4. Deploy, keeping a copy of what's on the head unit in `.\backup`:
    ```powershell
-   .\utilities\deploy_scp.ps1 -mapConfigs .\path\to\unzipped-export -destPath /mnt/app/navigation/resources/app/audi/aus/ -deploy -backup
+   .\utilities\deploy_scp.ps1 -style ios-15 -destPath /mnt/app/navigation/resources/app/audi/aus/ -deploy -backup
    ```
    The script stops if `-destPath` doesn't exist on the head unit. It then remounts `/net/mmx/mnt/app` read-write, copies the files, remounts it read-only and restarts `AppStartATF`. Those steps come from the original VW workflow; the A4 runs the same MIB2 High platform, but they haven't been tried on it yet, so keep the backup.
 
