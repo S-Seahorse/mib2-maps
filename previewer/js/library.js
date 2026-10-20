@@ -62,5 +62,62 @@
     return id;
   }
 
-  MIB.library = { ALT_DIR, parseIndex, indexWith, drafts, saveDrafts, folderName };
+  // The navigation uses whichever copy of the map style has the highest version
+  // in its version-cfg.txt: the one on the head unit, the one in the map
+  // database, or (with the LoadStylesFromSDCard flag) one in the root of an SD
+  // card. A style for the car gets a version above any stock one, so it wins:
+  // "10.0.2811" becomes "10.0.9999".
+  const RAISED_PATCH = 9999;
+
+  function raisedVersion(text) {
+    const eol = /\r\n/.test(text) ? '\r\n' : '\n';
+    const m = /^\s*(\d+)\.(\d+)\.(\d+)/.exec(String(text || ''));
+    if (!m) return `10.0.${RAISED_PATCH}${eol}`;
+    return `${m[1]}.${m[2]}.${Math.max(RAISED_PATCH, +m[3] + 1)}${eol}`;
+  }
+
+  // The top-level items of a map style folder (VW and Audi). Writing a style
+  // to an SD card replaces these in the card's root and leaves everything else.
+  const STYLE_ITEMS = [
+    'amzoomconfig.xml',
+    'amzoomconfig.1.xml',
+    'amzoomconfig_1280x640.xml',
+    'commit.txt',
+    'exitview',
+    'Font',
+    'gui',
+    'guidanceview',
+    'HUD',
+    'images.cff',
+    'intersectionmap',
+    'MapConfigs',
+    'Models',
+    'pcconfig',
+    'poi',
+    'res',
+    'resourceConfig.xml',
+    'revision.txt',
+    'roadicon',
+    'signpost',
+    'sky',
+    'textures',
+    'tti',
+    'version-cfg.txt',
+  ];
+  // SD cards are FAT32, where names ignore case.
+  const isStyleItem = (name) => STYLE_ITEMS.some((item) => item.toLowerCase() === String(name).toLowerCase());
+
+  // The style items in a folder about to get a style, or an error when the
+  // folder has items with those names but no style (so it isn't the SD card's
+  // root, and replacing them would delete someone's files).
+  function styleItemsToReplace(names) {
+    const items = names.filter(isStyleItem);
+    const holdsStyle = names.some((n) => /^(version-cfg\.txt|mapconfigs)$/i.test(n));
+    if (items.length && !holdsStyle) {
+      return { error: `It has ${items.join(', ')} but no map style, so it doesn't look like the SD card's root folder. Pick the card itself, empty or with a map style on it.` };
+    }
+    return { items };
+  }
+
+  MIB.library = { ALT_DIR, parseIndex, indexWith, drafts, saveDrafts, folderName, raisedVersion, STYLE_ITEMS, isStyleItem, styleItemsToReplace };
 })((window.MIB = window.MIB || {}));

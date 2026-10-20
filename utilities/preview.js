@@ -7,6 +7,9 @@
 //
 // The previewer reads the style folders next to it, which browsers don't allow for a page opened
 // straight from disk, so it needs to be served. Only this computer can reach the server.
+//
+// A folder address ending in ?list answers with the files in it, as JSON, so the Style Lab can copy
+// a whole style folder to an SD card.
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -65,6 +68,15 @@ function fileFor(urlPath) {
   return file === ROOT || file.startsWith(ROOT + path.sep) ? file : null;
 }
 
+// Every file under a folder, as paths relative to it, leaving out hidden ones.
+function listFiles(dir, rel = '') {
+  return fs.readdirSync(path.join(dir, rel), { withFileTypes: true }).flatMap((d) => {
+    if (d.name.startsWith('.')) return [];
+    const p = rel ? `${rel}/${d.name}` : d.name;
+    return d.isDirectory() ? listFiles(dir, p) : d.isFile() ? [p] : [];
+  });
+}
+
 function send(res, status, text, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', ...headers });
   res.end(text);
@@ -80,6 +92,9 @@ const server = http.createServer((req, res) => {
     if (!err && stat.isDirectory()) {
       // Pages refer to their files relative to the folder, so folders need the trailing slash.
       if (!url.pathname.endsWith('/')) return send(res, 301, '', { Location: `${url.pathname}/${url.search}` });
+      if (url.searchParams.has('list')) {
+        return send(res, 200, JSON.stringify({ files: listFiles(file) }), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
+      }
       file = path.join(file, 'index.html');
       try {
         stat = fs.statSync(file);

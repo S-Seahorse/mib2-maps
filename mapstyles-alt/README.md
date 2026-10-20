@@ -56,6 +56,10 @@ Changes made to these styles in the previewer are lost the next time their palet
 ```sh
 node utilities/deploy.js --style ios-15 --dest-path /mnt/app/navigation/resources/app/audi/aus/ --deploy --backup
 ```
+Or put it on an SD card, for the [SD card method](../README.md#using-a-style-from-an-sd-card):
+```sh
+node utilities/deploy.js --style ios-15 --sd /path/to/card
+```
 See the main [README](../README.md#deploying-to-the-car) for the head-unit folder and the first-run checks.
 
 ## The styles here

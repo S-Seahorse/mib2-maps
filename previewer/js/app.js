@@ -811,6 +811,116 @@
     toast(`Unzip ${meta.id}.zip into ${ALT_DIR} (it replaces index.json) to add “${meta.name}” to the style picker.`);
   }
 
+  // The whole style folder with this style's colours, for the root of an SD card
+  // (the LoadStylesFromSDCard method): the stock folder's files, the MapConfigs
+  // with your edits, and a raised version so the navigation uses it. Copying the
+  // whole folder needs its file list, which npm run preview's server gives
+  // (folder?list); null when it isn't there.
+  async function sdCardFiles() {
+    const base = `${state.loaded[state.set.id].root}${state.set.dir}`;
+    let listing = null;
+    try {
+      const res = await fetch(`${base}?list`, { cache: 'no-cache' });
+      if (res.ok && /json/.test(res.headers.get('content-type') || '')) listing = (await res.json()).files;
+    } catch (_) {
+      /* no listing: not served by npm run preview */
+    }
+    if (!Array.isArray(listing)) return null;
+    const loadedFiles = new Map(state.files.map((f) => [f.path, f]));
+    const files = [];
+    for (const rel of listing) {
+      const name = rel.split('/').pop();
+      if (name === '.DS_Store' || /\.md$/i.test(name)) continue;
+      const f = loadedFiles.get(rel.replace(/\.gz$/, ''));
+      let data;
+      if (f) {
+        // Keep the stock file's name, so it replaces the one the navigation knows.
+        data = encodeText(MIB.mxf.serialize(f.model, editsForFile(f)));
+        if (/\.gz$/.test(rel)) data = await gzip(data);
+      } else {
+        const res = await fetch(base + rel, { cache: 'no-cache' });
+        if (!res.ok) throw new Error(`${state.set.dir}${rel} could not be read (HTTP ${res.status}).`);
+        data = new Uint8Array(await res.arrayBuffer());
+        if (rel === 'version-cfg.txt') data = encodeText(MIB.library.raisedVersion(decodeText(data)));
+      }
+      files.push({ path: rel, data });
+    }
+    return files;
+  }
+
+  // Writes the files into the folder picked as the SD card, replacing the style
+  // already there and leaving everything else. Returns the items it replaced.
+  async function writeToCard(card, files) {
+    const names = [];
+    for await (const [name] of card.entries()) names.push(name);
+    const { items, error } = MIB.library.styleItemsToReplace(names);
+    if (error) throw new Error(`Nothing was written to ${card.name || 'that folder'}. ${error}`);
+    for (const name of items) await card.removeEntry(name, { recursive: true });
+    const folders = new Map([['', card]]);
+    const folder = async (rel) => {
+      if (!folders.has(rel)) {
+        const cut = rel.lastIndexOf('/');
+        const parent = await folder(cut < 0 ? '' : rel.slice(0, cut));
+        folders.set(rel, await parent.getDirectoryHandle(rel.slice(cut + 1), { create: true }));
+      }
+      return folders.get(rel);
+    };
+    for (const f of files) {
+      const cut = f.path.lastIndexOf('/');
+      const dir = await folder(cut < 0 ? '' : f.path.slice(0, cut));
+      const out = await (await dir.getFileHandle(f.path.slice(cut + 1), { create: true })).createWritable();
+      await out.write(f.data);
+      await out.close();
+    }
+    return items;
+  }
+
+  async function exportSdCard() {
+    commitPending();
+    const style = state.style;
+    if (!style || style.kind === 'custom') {
+      toast("An SD card needs a whole style folder, which your own files don't come with. Pick a stock or alternate style.", true);
+      return;
+    }
+    toast('Gathering the style folder…');
+    let files;
+    try {
+      files = await sdCardFiles();
+    } catch (err) {
+      toast(err.message || 'The style folder could not be read.', true);
+      return;
+    }
+    if (!files) {
+      toast('Writing an SD card needs the whole style folder, which the Style Lab can only read when started with npm run preview in the repository folder.', true);
+      return;
+    }
+    const flagNote = 'The head unit needs the LoadStylesFromSDCard flag; then put the card in an SD slot and restart the MMI.';
+    // Chrome and Edge can write to the card directly; elsewhere, a .zip to unzip onto it.
+    if (typeof window.showDirectoryPicker === 'function') {
+      let card = null;
+      try {
+        card = await window.showDirectoryPicker({ id: 'mib2-sd-card', mode: 'readwrite' });
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        // Not allowed here (in a frame, for example): download it instead.
+      }
+      if (card) {
+        const where = card.name || 'the card';
+        try {
+          toast(`Writing ${files.length} files to ${where}…`);
+          const replaced = await writeToCard(card, files);
+          toast(`${style.name} is on ${where}${replaced.length ? ', in place of the style that was there' : ''}. ${flagNote}`);
+        } catch (err) {
+          toast(err.message || 'Writing to the card failed.', true);
+        }
+        return;
+      }
+    }
+    const id = style.kind === 'stock' ? style.set.id : (style.alt || style.draft).id;
+    await save(`sd-card-${id}.zip`, await makeZip(files));
+    toast(`Unzip sd-card-${id}.zip onto the root of the SD card, replacing any map style already there. ${flagNote}`);
+  }
+
   let dialogMode = null;
   let dialogThen = null;
 
@@ -1311,6 +1421,15 @@
       close();
       exportStyle();
     });
+    // A hosted copy doesn't have the whole style folders, so it can't write an SD card.
+    const sdItem = $('#export-sd');
+    if (sdItem && window.MIB_MAPSTYLES_XML) sdItem.hidden = true;
+    else if (sdItem) {
+      sdItem.addEventListener('click', () => {
+        close();
+        exportSdCard();
+      });
+    }
     const themePicker = $('#theme-picker');
     $('#import-theme').addEventListener('click', () => {
       close();
