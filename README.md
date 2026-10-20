@@ -44,8 +44,9 @@ This started as [hgnme/mib2-maps](https://github.com/hgnme/mib2-maps), which res
 4. Export:
    * **Map style folder** downloads the style as a folder for [mapstyles-alt/](mapstyles-alt), with an `index.json` that lists it beside the styles already there. Unzip it into `mapstyles-alt/` (replacing `index.json`) and it appears in the style picker.
    * **MapConfigs folder** downloads just the MapConfig files, to deploy straight away.
+   * **SD card** writes the whole style folder with your colours to an SD card, for [using a style from an SD card](#using-a-style-from-an-sd-card). In Chrome or Edge you pick the card and it's written straight to it; other browsers download a `.zip` to unzip onto the card. It needs the Style Lab started with `npm run preview`.
 
-   Either way, only the values you changed differ from the files you started with, and the files keep their original `.mxf.gz` names, so they replace the files on the head unit.
+   In each of them, only the values you changed differ from the files you started with (the SD card also gets a raised version), and the files keep their original `.mxf.gz` names, so they replace the files on the head unit.
 
 A change on the Standard map also applies to the satellite and traffic maps wherever they used the same colour as the Standard map; a change made on one of those maps applies to that map only. That way the traffic map keeps its muted colours unless you change them there.
 
@@ -72,6 +73,25 @@ Opening `previewer/index.html` straight from disk doesn't load any styles, becau
    The script stops if `--dest-path` doesn't exist on the head unit, or if the backup doesn't finish. It then remounts `/net/mmx/mnt/app` read-write, copies the files, remounts it read-only and restarts `AppStartATF` (not if the copy failed). Those steps come from the original VW workflow; the A4 runs the same MIB2 High platform, but they haven't been tried on it yet, so keep the backup.
 
 `node utilities/deploy.js --help` lists the options. To deploy the VW styles as the original project did, use `--styles mapstyles --vw-builder --dest-path /mnt/app/navigation/resources/app/vw/aus/`.
+
+### Which copy of the style the navigation uses
+There can be several copies of the map style: the one on the head unit (the folder above), one in the map database that comes with map updates, and, with the SD card method below, one in the root of an SD card. Each time it starts, the navigation uses the one with the highest version in its `version-cfg.txt` ([mib2-toolbox#150](https://github.com/jilleb/mib2-toolbox/issues/150)). So whenever a style's MapConfigs are swapped in, the deploy script raises the version (for example `10.0.2811` becomes `10.0.9999`), or a newer map database would win and the style would never show. Stock styles keep their version, and `--keep-version` keeps it for a style too.
+
+## Using a style from an SD card
+The navigation can also load its map style from the root of an SD card, once the head unit has an empty file called `/navigation/LoadStylesFromSDCard`. Nothing on the head unit changes after that: you swap styles by writing the card, and without the card the navigation goes back to its own style.
+
+1. Set the flag, once. [mib2-toolbox](https://github.com/jilleb/mib2-toolbox)'s **Use Audi mapstyles from SD-card** menu item sets it. (It also tries to copy Audi's stock styles onto the card from the European map database, which doesn't matter here, since the next step writes the card.) Over SSH, after making its partition writable (`mount -uw /net/mmx/mnt/app` if `/navigation` is on the app partition), it's:
+   ```sh
+   touch /navigation/LoadStylesFromSDCard
+   ```
+2. Write the style to the card, either from the Style Lab (**Export → SD card**) or with the deploy script:
+   ```sh
+   node utilities/deploy.js --style allroad --sd /path/to/card
+   ```
+   The card's root gets the whole style folder: the stock Audi styles (so Audi's icons and fonts stay right) with the style's MapConfigs and a raised version. Only a map style's own items in the root are replaced; anything else on the card, such as the toolbox or M.I.B., stays. A folder that has items with those names but no map style isn't written to, in case it isn't the card.
+3. Put the card in an SD slot and restart the MMI.
+
+To stop using the card, take it out; to turn the method off, delete `/navigation/LoadStylesFromSDCard`.
 
 ### Configuring mib2 SSH host
 Add the below to your ~/.ssh/config file

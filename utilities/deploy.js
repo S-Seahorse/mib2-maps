@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Builds a deploy folder from a map style folder and, with --deploy, copies it to the head unit.
+// Builds a deploy folder from a map style folder and, with --deploy, copies it to the head unit, or
+// with --sd, writes it to an SD card for the LoadStylesFromSDCard method.
 //
 // Set up for the 2017 Audi A4 with MMI Navigation plus (Australia): it stages the stock Audi
 // styles in mapstyles-audidefault, swaps in MapConfigs exported from the previewer
@@ -9,11 +10,16 @@
 // The Audi style folder on the head unit hasn't been confirmed on an A4 yet. Run with --list to
 // see the map style folders on the unit, then pass the right one with --dest-path. Deploying stops
 // if that folder doesn't exist, so nothing lands in the wrong place.
+//
+// The navigation uses the copy of the map style with the highest version in version-cfg.txt (on the
+// head unit, in the map database, or on an SD card), so a style gets a raised version to win.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { parseArgs } = require('util');
 const { HOST, CANT_CONNECT, fail, run, ssh, scp, timestamp } = require('./lib/head-unit');
+const { MIB } = require('./lib/previewer');
 
 const ROOT = path.resolve(__dirname, '..');
 const NAV_ROOT = '/mnt/app/navigation/resources/app/';
@@ -30,10 +36,14 @@ const USAGE = `Usage: node utilities/deploy.js [options]
   --deploy              copy the staged folder to the head unit
   --backup              with --deploy, first copy what's on the head unit to backup/
   --dest-path <path>    the map style folder on the head unit (default ${DEFAULT_DEST})
+  --sd <card>           write the staged folder to the root of an SD card instead, for the
+                        LoadStylesFromSDCard method (only the style's own items there are replaced)
+  --keep-version        keep the stock version-cfg.txt; by default a style gets a version above
+                        any stock one, so the navigation uses it
   --list                list the map style folders on the head unit
   -h, --help            show this help
 
-Without --deploy, the style is only staged in deploy/, to look over first.`;
+Without --deploy or --sd, the style is only staged in deploy/, to look over first.`;
 
 let opt;
 try {
@@ -46,6 +56,8 @@ try {
       deploy: { type: 'boolean' },
       backup: { type: 'boolean' },
       'dest-path': { type: 'string', default: DEFAULT_DEST },
+      sd: { type: 'string' },
+      'keep-version': { type: 'boolean' },
       list: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -88,11 +100,14 @@ const mapBuilder = path.join(ROOT, 'mib2-mapbuilder');
 const backupDir = path.join(ROOT, 'backup', timestamp());
 
 if (!fs.existsSync(styleSrc)) fail(`Style folder not found: ${styleSrc}`);
+if (opt.sd && opt.deploy) fail('Pass --deploy or --sd, not both.');
+const card = opt.sd ? checkCard(opt.sd) : null;
 if (opt.backup && !opt.deploy) console.log('Note: --backup only applies with --deploy.');
 
 console.log('Directories:');
 console.log(`--> Style source: ${styleSrc}`);
 console.log(`--> Staging target: ${stagingDir}`);
+if (card) console.log(`--> SD card: ${card}`);
 if (opt.deploy) {
   console.log(`--> Head unit target: ${destPath}`);
   if (opt.backup) console.log(`--> Backup target: ${backupDir}`);
@@ -115,6 +130,16 @@ if (opt['vw-builder']) {
   // npm is a script on Windows, so it runs through the shell.
   if (run('npm run --silent buildmaps', [], { cwd: mapBuilder, shell: true }) !== 0) fail('mib2-mapbuilder failed to build the MapConfigs.');
   fs.cpSync(path.join(mapBuilder, 'rendered'), path.join(stagingDir, 'MapConfigs'), { recursive: true, force: true });
+}
+
+// The SD card's folder, after checking it isn't this repository or a folder holding your home folder.
+function checkCard(dir) {
+  const card = path.resolve(dir);
+  const holds = (outer, inner) => inner === outer || inner.startsWith(outer.endsWith(path.sep) ? outer : outer + path.sep);
+  if (!fs.existsSync(card) || !fs.statSync(card).isDirectory()) fail(`SD card folder not found: ${card}`);
+  if (holds(card, ROOT) || holds(ROOT, card)) fail(`${card} is this repository, or holds it, rather than an SD card.`);
+  if (holds(card, os.homedir())) fail(`${card} holds your home folder, so it isn't an SD card.`);
+  return card;
 }
 
 // Every file under a folder, as paths relative to it.
@@ -154,7 +179,34 @@ console.log('--> Storing the commit point in commit.txt');
 const git = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' });
 fs.writeFileSync(path.join(stagingDir, 'commit.txt'), git.status === 0 ? git.stdout : 'unknown\n');
 
+// Stock styles deployed to the head unit keep their version, so they don't hold back newer ones from
+// a map update. A style, or anything on a card, is meant to be used.
+const versionFile = path.join(stagingDir, 'version-cfg.txt');
+if ((mapConfigs || opt['vw-builder'] || card) && !opt['keep-version'] && fs.existsSync(versionFile)) {
+  const before = fs.readFileSync(versionFile, 'utf8');
+  const after = MIB.library.raisedVersion(before);
+  fs.writeFileSync(versionFile, after);
+  console.log(`--> Raising the version in version-cfg.txt so the navigation uses this style: ${before.trim()} -> ${after.trim()}`);
+}
+
 console.log('Staging build complete');
+
+if (card) {
+  console.log('Begin writing to the SD card');
+  try {
+    // The card's root is the style folder, so replace the style there and leave everything else.
+    const { items: old, error } = MIB.library.styleItemsToReplace(fs.readdirSync(card));
+    if (error) fail(`Nothing was written to ${card}. ${error}`);
+    for (const name of old) fs.rmSync(path.join(card, name), { recursive: true, force: true });
+    if (old.length) console.log(`--> Removed the style already on the card: ${old.join(', ')}`);
+    console.log('--> Copying the style folder to the card');
+    for (const name of fs.readdirSync(stagingDir)) fs.cpSync(path.join(stagingDir, name), path.join(card, name), { recursive: true });
+  } catch (err) {
+    fail(`Writing to the SD card failed: ${err.message}`);
+  }
+  console.log('SD card ready. The head unit needs the LoadStylesFromSDCard flag (see the README); then put the card');
+  console.log('in an SD slot and restart the MMI. Without the card, the navigation goes back to its own style.');
+}
 
 if (opt.deploy) {
   console.log('Begin deploy to the head unit');
