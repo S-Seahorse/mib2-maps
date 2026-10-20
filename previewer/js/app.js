@@ -68,10 +68,18 @@
 
   // ---- files ----------------------------------------------------------------
 
+  // A hosted copy may only be able to serve these files unpacked, named .xml
+  // (window.MIB_MAPSTYLES_XML): x.mxf.gz becomes x.mxf.xml.
+  function servedName(path) {
+    if (!window.MIB_MAPSTYLES_XML) return path;
+    const plain = path.replace(/\.gz$/, '');
+    return /\.xml$/.test(plain) ? plain : `${plain}.xml`;
+  }
+
   async function fetchBytes(path) {
     for (const base of BASES) {
       try {
-        const res = await fetch(base + path, { cache: 'no-cache' });
+        const res = await fetch(base + servedName(path), { cache: 'no-cache' });
         if (!res.ok || /text\/html/.test(res.headers.get('content-type') || '')) continue;
         const bytes = new Uint8Array(await res.arrayBuffer());
         if (!bytes.length) continue;
