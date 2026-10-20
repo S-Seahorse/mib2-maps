@@ -1,0 +1,393 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<guidanceviewconfig name="exitview">
+  <!-- This should be defined first. -->
+  <version value="14" />
+  <!-- This tag is used for debugging. -->
+  <!-- It should be removed or set to "0" for a release! -->
+  <!-- If enabled, each render call will cause any component surface to be dumped as BMP files at the location of the binary configuration file. -->
+  <!-- This WILL slow down things considerably! -->
+  <debug mode="0" />
+  <!-- the filename and folder of the bitmap archive -->
+  <bitmaparchive subfolder="guidanceview" filename="guidanceviewcommon_800x252.cff" />
+  <!-- The drawing order determines which component can overlap another.
+        The components are drawn in the order that is specified here.
+        Only the components specified here are drawn.
+        (Exception: if only kdk/exitview should be drawn leave this list empty)
+
+        available flags for drawingmode (defines for which drawing modes this drawing order is):
+        nothing             = 0x00000000
+        kdk                 = 0x00000001
+        exitview            = 0x00000002
+        default             = 0x00000004
+        straightahead       = 0x00000008
+        destinationflag     = 0x00000010
+        uturn               = 0x00000020
+        compass             = 0x00000040
+        preparemode         = 0x00000080
+
+        if nothing specified, 0xFFFFFFFF is taken as value for drawingmode
+    -->
+  <drawingorderconfiguration drawingmode="0xFFFFFF8F">
+    <drawingorder name="background" />
+    <drawingorder name="guidancebox" />
+    <drawingorder name="bitmapstacker" />
+    <drawingorder name="ttipoi" />
+    <drawingorder name="maneuver" />
+    <drawingorder name="ttsspi" />
+    <drawingorder name="bargraph" />
+  </drawingorderconfiguration>
+  <drawingorderconfiguration drawingmode="0x00000010">
+    <!-- destinationflag -->
+    <drawingorder name="background" />
+    <drawingorder name="guidancebox" />
+    <drawingorder name="bitmapstacker" />
+    <!-- no "top box" (ttipoi, maneuver, ttsspi) for these drawingmodes -->
+    <drawingorder name="bargraph" />
+  </drawingorderconfiguration>
+  <drawingorderconfiguration drawingmode="0x00000020">
+    <!-- uturn -->
+    <drawingorder name="background" />
+    <drawingorder name="guidancebox" />
+    <drawingorder name="bitmapstacker" />
+    <!-- no "top box" (ttipoi, maneuver, ttsspi) for these drawingmodes -->
+  </drawingorderconfiguration>
+  <drawingorderconfiguration drawingmode="0x00000040">
+    <!-- compass -->
+    <drawingorder name="background" />
+    <drawingorder name="guidancebox" />
+    <drawingorder name="compass" />
+    <!-- no "top box" (ttipoi, maneuver, ttsspi) for compass -->
+  </drawingorderconfiguration>
+  <!-- priority of drawing modes:
+    when starting a drawing mode, the main component with the highest priority is used
+    to draw this mode -->
+  <drawingmodes>
+    <drawingmode name="kdk" priority="0" />
+    <drawingmode name="exitview" priority="0" />
+    <drawingmode name="default" priority="1" />
+    <drawingmode name="straightahead" priority="0" />
+    <drawingmode name="destinationflag" priority="1" />
+    <drawingmode name="uturn" priority="1" />
+    <drawingmode name="compass" priority="1" />
+  </drawingmodes>
+  <!-- blending settings
+    To disable blending outcomment or remove block or set both blendtimes to 0.
+    Blending is from blendcolor to GuidanceView (blendin) or vice versa (blend out).
+    blend: 'from' and 'to' tell from which mode to which mode is blended
+
+    available 'to'-flags:
+    nothing             = 0x00000000
+    kdk                 = 0x00000001
+    exitview            = 0x00000002
+    default             = 0x00000004
+    straightahead       = 0x00000008
+    destinationflag     = 0x00000010
+    uturn               = 0x00000020
+    compass             = 0x00000040
+    notdrawing          = 0x80000000
+    -->
+  <blending>
+    <parameter dccolor="0x000000FF" blendin_time="300" blendout_time="300" blendbitmap="blendtexture.png" />
+    <blend from="kdk" to="0xFFFFFFFE" />
+    <blend from="exitview" to="0xFFFFFFFD" />
+    <blend from="default" to="0xFFFFFFFB" />
+    <blend from="straightahead" to="0xFFFFFFF7" />
+    <blend from="destinationflag" to="0xFFFFFFEF" />
+    <blend from="uturn" to="0xFFFFFFDF" />
+    <blend from="compass" to="0xFFFFFFBF" />
+    <blend from="notdrawing" to="0xFFFFFFFF" />
+  </blending>
+  <!-- there are currently these components supported:
+        Note: It is possible to configure any components in any order.
+        exitview                   -> a component displaying a simplyfied view of a motorway exit
+        kdk                        -> a component displaying a zoomed-in view of the current maneuver
+        background                 -> a component displaying the guidanceview background
+        distancetomaneuver         -> a component displaying the DTM
+        distancetodestination      -> a component displaying the DTD
+        estimatedtimeofarrival     -> a component displaying the ETA
+        estimatedtimetodestination -> a component displaying the ETD
+        ttsspi                     -> a component displaying the next street (the street after the current maneuver) or next city name, with a road icon if available
+        ttipoi                     -> a component displaying TTI and POI information
+        maneuver                   -> a component displaying maneuver infomation: a bitmap visualizing the maneuver, a text describing the maneuver (possibly with an additional roadicon)
+        bitmapstacker              -> a component for displaying a stack of arbitrary bitmaps
+        laneinfo                   -> a component which displays a lane guidance with arrows, if such data is available
+        compass                    -> a component which displays a compass for orientation
+        bargraph                   -> a component which displays a progress bar according to the distance to the next maneuver
+        Special:
+        guidancebox                -> the GuidanceView itself, all component positions are relative to is and should be inside this rectangle
+        Note: The guidancebox should not appear in the drawingorderconfiguration, it is not a real component at all, just a general setting
+    -->
+  <component name="guidancebox">
+    <position x="0" y="0" width="800" height="252" />
+    <color dccolor="0x00000000" />
+  </component>
+  <component name="background">
+    <position x="0" y="0" width="800" height="252" />
+    <color dccolor="0x00000000" />
+    <bitmap type="background" name="TopKombiNav.png" />
+  </component>
+  <component name="ttsspi" initial_active="true">
+    <position x="247" y="10" width="306" height="62" />
+    <color dccolor="0x00000000" />
+    <bitmap type="background" name="SignpostSmall.png" />
+    <drawingconfiguration name="main_label">
+      <position x="10" y="0" width="286" height="52" />
+    </drawingconfiguration>
+    <!-- possible values: ttsspi (signpostinformation and roadnames are displayed)
+        , spi (only signpostinformation are displayed), tts (only roadnames are displayed)-->
+    <mode value="ttsspi" />
+    <drawingconfiguration name="maintext_tts_label">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="50" outline_width="0" />
+      <alignment type="left" />
+      <!-- roadicon alignment can be "left" and "right"
+            This will place the road icon either left or right of the text.-->
+      <!--alignmentroadicon type="left" NOT SUPPORTED CURRENTLY / -->
+      <!--roadicondistance sets the distance in pixel between the road icon and the text.-->
+      <roadicondistance value="12" />
+    </drawingconfiguration>
+    <drawingconfiguration name="maintext_spi_label">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="50" outline_width="0" />
+      <alignment type="left" />
+      <!--alignmentroadicon type="left" NOT SUPPORTED CURRENTLY / -->
+      <roadicondistance value="10" />
+    </drawingconfiguration>
+    <!-- configuration for the 2-line modus of the ttsspi to show exitnumbers:
+        the separationline separates the two textlines, the height defines its vertical position
+        the alignment is used to align the exitnumber text
+        distanceoffset: additional distance of the text in pixels to the border (only if left or right alignment)
+        the text prefix will be used in front of the exitnumber: e.g. exitnumber = 42 -> "[PREFIX]42" is the output
+
+        deactivate the 2-line exitnumber feature:
+        if the exitnumber_label drawingconfiguration is not defined here, the feature is disabled
+        -->
+    <!--
+        <drawingconfiguration name="exitnumber_label">
+            <separationline height="44" thickness="1" dccolor="0x808080FF" />
+            <alignment type="left" />
+            <distanceoffset value="0" />
+            <text prefix="EXIT " />
+            <font id="52" outline_width="0" />
+        </drawingconfiguration>
+        -->
+    <!-- exit icon -->
+    <!-- configuration for the HOV icon:
+        bitmap is the bitmap filename in the guidanceviewcommon.cff
+        distanceoffset defines the distance in pixels between the hovicon and the roadicon
+        verticaloffset is the y-offset of the hovicon in pixels
+
+        deactivate the hovicon feature:
+        if the hov_icon drawingconfiguration is not defined here, the feature is disabled
+        -->
+    <!--
+        <drawingconfiguration name="hov_icon">
+            <bitmap name = "HOVIcon.png" />
+            <distanceoffset value = "6" />
+            <verticaloffset value = "-1" />
+        </drawingconfiguration>
+        -->
+  </component>
+  <component name="ttipoi" initial_active="false">
+    <position x="247" y="10" width="306" height="113" />
+    <color dccolor="0x00000000" />
+    <bitmap type="background" name="SignpostLarge.png" />
+    <!-- textconfigs: which drawing configurations are to be used for a given text? -->
+    <textconfig name="maintext_label" separator="|" template="maintext_label">
+      <position x="23" y="5" width="266" height="30" />
+    </textconfig>
+    <textconfig name="timeto_label" separator="|" template="timeto_value,8;timeto_unit">
+      <position x="23" y="73" width="263" height="25" />
+    </textconfig>
+    <textconfig name="distanceto_label" separator="|" template="distanceto_unit,5;distanceto_value,8;distanceto_unit">
+      <position x="23" y="73" width="266" height="25" />
+    </textconfig>
+    <textconfig name="icon_label" separator="|" template="icon_label">
+      <position x="19" y="35" width="268" height="40" />
+    </textconfig>
+    <textconfig name="background_label" separator="|" template="background_label">
+      <position x="10" y="0" width="286" height="103" />
+    </textconfig>
+    <!-- -->
+    <!-- background -->
+    <tokenconfig name="background_label">
+      <!-- only visible if ttsspi background mode enabled -->
+      <backgroundmode ttsspi="0" />
+    </tokenconfig>
+    <!-- maintext -->
+    <tokenconfig name="maintext_label">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="50" outline_width="0" />
+      <alignment type="left" />
+    </tokenconfig>
+    <!-- distanceto -->
+    <tokenconfig name="distanceto_value">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="51" outline_width="0" />
+      <alignment type="left" />
+    </tokenconfig>
+    <tokenconfig name="distanceto_unit">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="52" outline_width="0" />
+      <alignment type="left" />
+    </tokenconfig>
+    <!-- timeto -->
+    <tokenconfig name="timeto_value">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="51" outline_width="0" />
+      <alignment type="right" />
+    </tokenconfig>
+    <tokenconfig name="timeto_unit">
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="52" outline_width="0" />
+      <alignment vtype="bottom" />
+    </tokenconfig>
+    <!-- icon -->
+    <tokenconfig name="icon_label">
+      <alignment type="left" vtype="vcentered" />
+      <!-- type = left, right ; vtype = vcentered, top, bottom -->
+      <icondistance value="2" />
+      <maxnumber value="5" />
+      <!-- exit icon -->
+    </tokenconfig>
+    <!-- C7PA compatibility begin -->
+    <drawingconfiguration name="background_label">
+      <!-- only visible if ttsspi background mode enabled -->
+      <position x="10" y="0" width="286" height="103" />
+      <backgroundmode ttsspi="0" />
+    </drawingconfiguration>
+    <drawingconfiguration name="maintext_label">
+      <position x="23" y="5" width="266" height="30" />
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="50" outline_width="0" />
+      <alignment type="left" />
+    </drawingconfiguration>
+    <drawingconfiguration name="distanceto_label">
+      <position x="23" y="75" width="266" height="25" />
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="51" outline_width="0" />
+      <alignment type="left" />
+    </drawingconfiguration>
+    <drawingconfiguration name="timeto_label">
+      <position x="23" y="75" width="263" height="25" />
+      <pen dccolor="0x202020FF" />
+      <brush dccolor="0xE0E0E0FF" />
+      <font id="51" outline_width="0" />
+      <alignment type="right" />
+    </drawingconfiguration>
+    <drawingconfiguration name="icon_label">
+      <position x="21" y="34" width="250" height="38" />
+      <alignment type="left" vtype="vcentered" />
+      <!-- type = left, right ; vtype = vcentered, top, bottom -->
+      <icondistance value="2" />
+      <maxnumber value="5" />
+    </drawingconfiguration>
+    <!-- C7PA compatibility end -->
+  </component>
+  <component name="maneuver" initial_active="false">
+    <position x="247" y="10" width="306" height="84" />
+    <color dccolor="0x00000000" />
+    <bitmap type="background" name="SignpostMedium.png" />
+    <drawingconfiguration name="background_label">
+      <!-- only visible if ttsspi background mode enabled -->
+      <position x="10" y="0" width="286" height="74" />
+      <backgroundmode ttsspi="0" />
+    </drawingconfiguration>
+    <drawingconfiguration name="maintext">
+      <pen dccolor="0x2D2D2DFF" />
+      <brush dccolor="0xE1E1E1FF" />
+      <font id="51" outline_width="0" />
+    </drawingconfiguration>
+    <drawingconfiguration name="maintext_no_roadicon">
+      <position x="88" y="2" width="200" height="70" />
+      <alignment type="left" />
+    </drawingconfiguration>
+    <drawingconfiguration name="maintext_with_roadicon">
+      <position x="88" y="40" width="200" height="30" />
+      <alignment type="left" />
+    </drawingconfiguration>
+    <drawingconfiguration name="roadicon">
+      <position x="88" y="5" width="188" height="33" />
+      <alignment type="left" />
+      <textdistance value="10" />
+    </drawingconfiguration>
+    <drawingconfiguration name="maneuver_arrow">
+      <position x="16" y="6" width="62" height="62" />
+      <alignment type="centered" vtype="vcentered" />
+    </drawingconfiguration>
+    <!-- exit icon -->
+  </component>
+  <component name="bitmapstacker">
+    <position x="0" y="0" width="800" height="252" />
+    <!-- the stack of bitmaps, drawn in the order of appearance -->
+    <!--bitmap name="any_bitmap_that_is_drawn_before_maincomponent_bitmaps.png" x="0" y="0" centered="false" /-->
+    <drawingconfiguration name="bitmap_maincomponent">
+      <position x="400" y="126" centered="true" />
+      <!-- has to be the first tag in this section, since these values are used as defaults for subsequent tags. -->
+      <!-- <prerenderedExitViews archivePath="exitViews.cff" /> -->
+      <!-- the maneuver bitmaps will only be drawn when the appropriate maneuver occurs -->
+      <maneuver type="IT_DESTINATION_REACHED" fg_bitmap="bitmapstacker\top_destination.png" bg_bitmap="" />
+      <!-- use x, y, and centered to override the defaults if necessary -->
+      <maneuver type="TT_DESTINATION_REACHED_LEFT" fg_bitmap="bitmapstacker\top_destination_left.png" bg_bitmap="" />
+      <maneuver type="TT_DESTINATION_REACHED_RIGHT" fg_bitmap="bitmapstacker\top_destination_right.png" bg_bitmap="" />
+      <maneuver type="TT_OFFROAD_DESTINATION_REACHED" fg_bitmap="bitmapstacker\top_destination_offroad.png" bg_bitmap="" />
+      <maneuver type="TT_UTURN (left)" fg_bitmap="bitmapstacker\top_uturn_lefthand.png" bg_bitmap="" />
+      <maneuver type="TT_UTURN (right)" fg_bitmap="bitmapstacker\top_uturn_righthand.png" bg_bitmap="" />
+    </drawingconfiguration>
+    <!--bitmap name="any_bitmap_that_is_drawn_after_maincomponent_bitmaps.png" x="0" y="0" centered="false" /-->
+  </component>
+  <component name="compass">
+    <position x="290" y="90" width="220" height="100" />
+    <!-- bitmaps used for the compass in sequential, clockwise order.
+           The total number of bitmaps defines the size of the individual slices covered by each bitmap -->
+    <bitmap name="compass\top_compass_01.png" />
+    <bitmap name="compass\top_compass_16.png" />
+    <bitmap name="compass\top_compass_15.png" />
+    <bitmap name="compass\top_compass_14.png" />
+    <bitmap name="compass\top_compass_13.png" />
+    <bitmap name="compass\top_compass_12.png" />
+    <bitmap name="compass\top_compass_11.png" />
+    <bitmap name="compass\top_compass_10.png" />
+    <bitmap name="compass\top_compass_09.png" />
+    <bitmap name="compass\top_compass_08.png" />
+    <bitmap name="compass\top_compass_07.png" />
+    <bitmap name="compass\top_compass_06.png" />
+    <bitmap name="compass\top_compass_05.png" />
+    <bitmap name="compass\top_compass_04.png" />
+    <bitmap name="compass\top_compass_03.png" />
+    <bitmap name="compass\top_compass_02.png" />
+  </component>
+  <component name="bargraph">
+    <position x="606" y="78" width="14" height="142" />
+    <!-- threshold distance to maneuver at which the bargraph becomes active -->
+    <show_at_dtm value="200" />
+    <!-- bitmaps used for the compass in sequential, clockwise order.
+           The total number of bitmaps defines the size of the individual slices covered by each bitmap -->
+    <bitmap name="bargraph\mib_bargraph_16.png" />
+    <bitmap name="bargraph\mib_bargraph_15.png" />
+    <bitmap name="bargraph\mib_bargraph_14.png" />
+    <bitmap name="bargraph\mib_bargraph_13.png" />
+    <bitmap name="bargraph\mib_bargraph_12.png" />
+    <bitmap name="bargraph\mib_bargraph_11.png" />
+    <bitmap name="bargraph\mib_bargraph_10.png" />
+    <bitmap name="bargraph\mib_bargraph_09.png" />
+    <bitmap name="bargraph\mib_bargraph_08.png" />
+    <bitmap name="bargraph\mib_bargraph_07.png" />
+    <bitmap name="bargraph\mib_bargraph_06.png" />
+    <bitmap name="bargraph\mib_bargraph_05.png" />
+    <bitmap name="bargraph\mib_bargraph_04.png" />
+    <bitmap name="bargraph\mib_bargraph_03.png" />
+    <bitmap name="bargraph\mib_bargraph_02.png" />
+    <bitmap name="bargraph\mib_bargraph_01.png" />
+    <bitmap name="bargraph\mib_bargraph_00.png" />
+  </component>
+</guidanceviewconfig>

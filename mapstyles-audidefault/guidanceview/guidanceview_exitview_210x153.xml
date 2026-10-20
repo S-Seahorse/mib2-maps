@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<guidanceviewconfig name="exitview">
+  <!-- This should be defined first. -->
+  <version value="14" />
+  <!-- This tag is used for debugging. -->
+  <!-- It should be removed or set to "0" for a release! -->
+  <!-- If enabled, each render call will cause any component surface to be dumped as BMP files at the location of the binary configuration file. -->
+  <!-- This WILL slow down things considerably! -->
+  <debug mode="0" />
+  <!-- the filename and folder of the bitmap archive -->
+  <bitmaparchive subfolder="guidanceview" filename="guidanceviewcommon_210x153.cff" />
+  <!-- The drawing order determines which component can overlap another.
+        The components are drawn in the order that is specified here.
+        Only the components specified here are drawn.
+        (Exception: if only kdk/exitview should be drawn leave this list empty)
+
+        available flags for drawingmode (defines for which drawing modes this drawing order is):
+        nothing             = 0x00000000
+        kdk                 = 0x00000001
+        exitview            = 0x00000002
+        default             = 0x00000004
+        straightahead       = 0x00000008
+        destinationflag     = 0x00000010
+        uturn               = 0x00000020
+        compass             = 0x00000040
+        preparemode         = 0x00000080
+
+        if nothing specified, 0xFFFFFFFF is taken as value for drawingmode
+    -->
+  <drawingorderconfiguration drawingmode="0xFFFFFF57">
+    <drawingorder name="background" />
+    <drawingorder name="exitview" />
+    <drawingorder name="bargraph" />
+  </drawingorderconfiguration>
+  <drawingorderconfiguration drawingmode="0x000000A8">
+    <!-- straighahead, preparemode, uturn -->
+    <drawingorder name="background" />
+    <drawingorder name="exitview" />
+  </drawingorderconfiguration>
+  <!-- priority of drawing modes:
+    when starting a drawing mode, the main component with the highest priority is used
+    to draw this mode -->
+  <drawingmodes>
+    <drawingmode name="kdk" priority="0" />
+    <drawingmode name="exitview" priority="1" />
+    <drawingmode name="default" priority="0" />
+    <drawingmode name="straightahead" priority="1" />
+    <drawingmode name="destinationflag" priority="0" />
+    <drawingmode name="uturn" priority="0" />
+    <drawingmode name="compass" priority="0" />
+  </drawingmodes>
+  <!-- blending settings
+    To disable blending outcomment or remove block or set both blendtimes to 0.
+    Blending is from blendcolor to GuidanceView (blendin) or vice versa (blend out).
+    blend: 'from' and 'to' tell from which mode to which mode is blended
+
+    available 'to'-flags:
+    nothing             = 0x00000000
+    kdk                 = 0x00000001
+    exitview            = 0x00000002
+    default             = 0x00000004
+    straightahead       = 0x00000008
+    destinationflag     = 0x00000010
+    uturn               = 0x00000020
+    compass             = 0x00000040
+    notdrawing          = 0x80000000
+    -->
+  <blending>
+    <parameter dccolor="0x00000000" blendin_time="300" blendout_time="300" />
+    <blend from="kdk" to="0xFFFFFFFE" />
+    <blend from="exitview" to="0xFFFFFFFD" />
+    <blend from="default" to="0xFFFFFFFB" />
+    <blend from="straightahead" to="0xFFFFFFF7" />
+    <blend from="destinationflag" to="0xFFFFFFEF" />
+    <blend from="uturn" to="0xFFFFFFDF" />
+    <blend from="compass" to="0xFFFFFFBF" />
+    <blend from="notdrawing" to="0xFFFFFFFF" />
+  </blending>
+  <!-- there are currently these components supported:
+        Note: It is possible to configure any components in any order.
+        exitview                   -> a component displaying a simplyfied view of a motorway exit
+        kdk                        -> a component displaying a zoomed-in view of the current maneuver
+        background                 -> a component displaying the guidanceview background
+        distancetomaneuver         -> a component displaying the DTM
+        distancetodestination      -> a component displaying the DTD
+        estimatedtimeofarrival     -> a component displaying the ETA
+        estimatedtimetodestination -> a component displaying the ETD
+        ttsspi                     -> a component displaying the next street (the street after the current maneuver) or next city name, with a road icon if available
+        ttipoi                     -> a component displaying TTI and POI information
+        maneuver                   -> a component displaying maneuver infomation: a bitmap visualizing the maneuver, a text describing the maneuver (possibly with an additional roadicon)
+        bitmapstacker              -> a component for displaying a stack of arbitrary bitmaps
+        laneinfo                   -> a component which displays a lane guidance with arrows, if such data is available
+        compass                    -> a component which displays a compass for orientation
+        bargraph                   -> a component which displays a progress bar according to the distance to the next maneuver
+        Special:
+        guidancebox                -> the GuidanceView itself, all component positions are relative to is and should be inside this rectangle
+        Note: The guidancebox should not appear in the drawingorderconfiguration, it is not a real component at all, just a general setting
+    -->
+  <component name="guidancebox">
+    <position x="0" y="0" width="210" height="153" />
+    <color dccolor="0x00000000" />
+  </component>
+  <component name="exitview">
+    <position x="0" y="0" width="210" height="153" />
+    <config subfolder="exitview" filename="exitviewconfig_210x153.evx" />
+  </component>
+  <component name="background">
+    <position x="0" y="0" width="210" height="153" />
+    <color dccolor="0x00000000" />
+  </component>
+  <component name="bargraph">
+    <position x="188" y="3" width="22" height="123" />
+    <!-- threshold distance to maneuver at which the bargraph becomes active -->
+    <show_at_dtm value="200" />
+    <!-- bitmaps used for the compass in sequential, clockwise order.
+           The total number of bitmaps defines the size of the individual slices covered by each bitmap -->
+    <bitmap name="bargraph\mib_bargraph_16.png" />
+    <bitmap name="bargraph\mib_bargraph_15.png" />
+    <bitmap name="bargraph\mib_bargraph_14.png" />
+    <bitmap name="bargraph\mib_bargraph_13.png" />
+    <bitmap name="bargraph\mib_bargraph_12.png" />
+    <bitmap name="bargraph\mib_bargraph_11.png" />
+    <bitmap name="bargraph\mib_bargraph_10.png" />
+    <bitmap name="bargraph\mib_bargraph_09.png" />
+    <bitmap name="bargraph\mib_bargraph_08.png" />
+    <bitmap name="bargraph\mib_bargraph_07.png" />
+    <bitmap name="bargraph\mib_bargraph_06.png" />
+    <bitmap name="bargraph\mib_bargraph_05.png" />
+    <bitmap name="bargraph\mib_bargraph_04.png" />
+    <bitmap name="bargraph\mib_bargraph_03.png" />
+    <bitmap name="bargraph\mib_bargraph_02.png" />
+    <bitmap name="bargraph\mib_bargraph_01.png" />
+    <bitmap name="bargraph\mib_bargraph_00.png" />
+  </component>
+</guidanceviewconfig>

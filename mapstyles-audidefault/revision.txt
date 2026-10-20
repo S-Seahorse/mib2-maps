@@ -1,0 +1,2 @@
+URL                 https://svnext.elektrobit.com/svn/StyleDB_MIB_AUDI/trunk/resources/MIB2-H/markets/aus/source
+Revision            2811

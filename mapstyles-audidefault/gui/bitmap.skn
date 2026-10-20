@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<images version="01010003">
+  <image id="199">
+    <bitmap>gui\road_name_marker.png,0,0,16,15,-8,-12</bitmap>
+  </image>
+</images>

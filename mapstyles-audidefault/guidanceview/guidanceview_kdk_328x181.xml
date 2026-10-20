@@ -1,0 +1,326 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<guidanceviewconfig name="kdk">
+  <!-- This should be defined first. -->
+  <version value="14" />
+  <!-- This tag is used for debugging. -->
+  <!-- It should be removed or set to "0" for a release! -->
+  <!-- If enabled, each render call will cause any component surface to be dumped as BMP files at the location of the binary configuration file. -->
+  <!-- This WILL slow down things considerably! -->
+  <debug mode="0" />
+  <!-- the filename and folder of the bitmap archive -->
+  <bitmaparchive subfolder="guidanceview" filename="guidanceviewcommon_328x181.cff" />
+  <!-- The drawing order determines which component can overlap another.
+        The components are drawn in the order that is specified here.
+        Only the components specified here are drawn.
+        (Exception: if only kdk/exitview should be drawn leave this list empty)
+
+        available flags for drawingmode (defines for which drawing modes this drawing order is):
+        nothing             = 0x00000000
+        kdk                 = 0x00000001
+        exitview            = 0x00000002
+        default             = 0x00000004
+        straightahead       = 0x00000008
+        destinationflag     = 0x00000010
+        uturn               = 0x00000020
+        compass             = 0x00000040
+        preparemode         = 0x00000080
+
+        if nothing specified, 0xFFFFFFFF is taken as value for drawingmode
+    -->
+  <drawingorderconfiguration>
+    <drawingorder name="background" />
+    <drawingorder name="kdk" />
+    <drawingorder name="laneinfo" />
+    <drawingorder name="bargraph" />
+    <drawingorder name="bytearray" />
+  </drawingorderconfiguration>
+  <!-- priority of drawing modes:
+    when starting a drawing mode, the main component with the highest priority is used
+    to draw this mode -->
+  <drawingmodes>
+    <drawingmode name="kdk" priority="1" />
+    <drawingmode name="exitview" priority="0" />
+    <drawingmode name="default" priority="0" />
+    <drawingmode name="straightahead" priority="0" />
+    <drawingmode name="destinationflag" priority="0" />
+    <drawingmode name="uturn" priority="0" />
+    <drawingmode name="compass" priority="0" />
+  </drawingmodes>
+  <!-- blending settings
+    To disable blending outcomment or remove block or set both blendtimes to 0.
+    Blending is from blendcolor to GuidanceView (blendin) or vice versa (blend out).
+    blend: 'from' and 'to' tell from which mode to which mode is blended
+
+    available 'to'-flags:
+    nothing             = 0x00000000
+    kdk                 = 0x00000001
+    exitview            = 0x00000002
+    default             = 0x00000004
+    straightahead       = 0x00000008
+    destinationflag     = 0x00000010
+    uturn               = 0x00000020
+    compass             = 0x00000040
+    notdrawing          = 0x80000000
+    -->
+  <blending>
+    <parameter dccolor="0x00000000" blendin_time="300" blendout_time="300" />
+    <position x="0" y="0" width="328" height="180" />
+    <blend from="kdk" to="0xFFFFFFFE" />
+    <blend from="exitview" to="0xFFFFFFFD" />
+    <blend from="default" to="0xFFFFFFFB" />
+    <blend from="straightahead" to="0xFFFFFFF7" />
+    <blend from="destinationflag" to="0xFFFFFFEF" />
+    <blend from="uturn" to="0xFFFFFFDF" />
+    <blend from="compass" to="0xFFFFFFBF" />
+    <blend from="notdrawing" to="0xFFFFFFFF" />
+  </blending>
+  <!-- there are currently these components supported:
+        Note: It is possible to configure any components in any order.
+        exitview                   -> a component displaying a simplyfied view of a motorway exit
+        kdk                        -> a component displaying a zoomed-in view of the current maneuver
+        background                 -> a component displaying the guidanceview background
+        distancetomaneuver         -> a component displaying the DTM
+        distancetodestination      -> a component displaying the DTD
+        estimatedtimeofarrival     -> a component displaying the ETA
+        estimatedtimetodestination -> a component displaying the ETD
+        ttsspi                     -> a component displaying the next street (the street after the current maneuver) or next city name, with a road icon if available
+        ttipoi                     -> a component displaying TTI and POI information
+        maneuver                   -> a component displaying maneuver infomation: a bitmap visualizing the maneuver, a text describing the maneuver (possibly with an additional roadicon)
+        bitmapstacker              -> a component for displaying a stack of arbitrary bitmaps
+        laneinfo                   -> a component which displays a lane guidance with arrows, if such data is available
+        compass                    -> a component which displays a compass for orientation
+        bargraph                   -> a component which displays a progress bar according to the distance to the next maneuver
+        Special:
+        guidancebox                -> the GuidanceView itself, all component positions are relative to is and should be inside this rectangle
+        Note: The guidancebox should not appear in the drawingorderconfiguration, it is not a real component at all, just a general setting
+    -->
+  <component name="guidancebox">
+    <position x="0" y="0" width="328" height="181" />
+    <color dccolor="0x00000000" />
+  </component>
+  <component name="kdk">
+    <position x="0" y="0" width="328" height="180" />
+    <config subfolder="intersectionmap" filename="KDKConfig_328x181.kdx" />
+  </component>
+  <component name="background">
+    <position x="0" y="0" width="328" height="181" />
+    <color dccolor="0x00000000" />
+  </component>
+  <component name="bargraph" affect_render_boundary="0">
+    <position x="247" y="30" width="22" height="123" />
+    <!-- threshold distance to maneuver at which the bargraph becomes active -->
+    <show_at_dtm value="200" />
+    <!-- bitmaps used for the compass in sequential, clockwise order.
+           The total number of bitmaps defines the size of the individual slices covered by each bitmap -->
+    <bitmap name="bargraph\mib_bargraph_16.png" />
+    <bitmap name="bargraph\mib_bargraph_15.png" />
+    <bitmap name="bargraph\mib_bargraph_14.png" />
+    <bitmap name="bargraph\mib_bargraph_13.png" />
+    <bitmap name="bargraph\mib_bargraph_12.png" />
+    <bitmap name="bargraph\mib_bargraph_11.png" />
+    <bitmap name="bargraph\mib_bargraph_10.png" />
+    <bitmap name="bargraph\mib_bargraph_09.png" />
+    <bitmap name="bargraph\mib_bargraph_08.png" />
+    <bitmap name="bargraph\mib_bargraph_07.png" />
+    <bitmap name="bargraph\mib_bargraph_06.png" />
+    <bitmap name="bargraph\mib_bargraph_05.png" />
+    <bitmap name="bargraph\mib_bargraph_04.png" />
+    <bitmap name="bargraph\mib_bargraph_03.png" />
+    <bitmap name="bargraph\mib_bargraph_02.png" />
+    <bitmap name="bargraph\mib_bargraph_01.png" />
+    <bitmap name="bargraph\mib_bargraph_00.png" />
+  </component>
+  <component name="laneinfo">
+    <position x="59" y="151" width="210" height="29" />
+    <color dccolor="0x00000000" />
+    <!-- connect to border featured is active, if activated="1" (="0" deactivated),
+        min_border_space tells how many pixels space should be between the outer separator and the border of the drawing rect of the laneinfo
+        if there is is not enough space, the outer separators will not be drawn and the laneinfo will be extended to the border
+        -->
+    <connecttoborder activated="1" min_border_space="1" />
+    <!-- this structure holds all bitmap information for the LaneInfo component -->
+    <!-- the id "0L" for the arrow bitmaps is special, it is the 'turn around' for left side driving areas -->
+    <!-- there are some extensions available: -->
+    <!-- offsetx, offsety : used only by the arrow bitmaps, to shift the bitmap by the given amount of pixels -->
+    <!-- width, height    : used only for the solid separator and the background bitmaps, to override the real bitmap width -->
+    <!--                    in case of MIB-S, the surface width must be a multiple of 8, and this applies to bitmaps as well -->
+    <!-- these extensions can be set at any other bitmap, they will even be stored inside of the binary file, but they are not used by the software yet -->
+    <drawingconfiguration name="laneinfo_bitmaps">
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="0L" name="Arrows\1\lg_arrow_mn0l_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="0" name="Arrows\1\lg_arrow_mn0r_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="1" name="Arrows\1\lg_arrow_mn2_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="2" name="Arrows\1\lg_arrow_mn4_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="3" name="Arrows\1\lg_arrow_mn6_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="4" name="Arrows\1\lg_arrow_mn8_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="5" name="Arrows\1\lg_arrow_mnA_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="6" name="Arrows\1\lg_arrow_mnC_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="1" side="middle" placement="normal" id="7" name="Arrows\1\lg_arrow_mnE_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="0L" name="Arrows\1\lg_arrow_mp0l_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="0" name="Arrows\1\lg_arrow_mp0r_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="1" name="Arrows\1\lg_arrow_mp2_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="2" name="Arrows\1\lg_arrow_mp4_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="3" name="Arrows\1\lg_arrow_mp6_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="4" name="Arrows\1\lg_arrow_mp8_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="5" name="Arrows\1\lg_arrow_mpA_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="6" name="Arrows\1\lg_arrow_mpC_1.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="1" side="middle" placement="normal" id="7" name="Arrows\1\lg_arrow_mpE_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="0L" name="Arrows\1\lg_arrow_mp0l_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="0" name="Arrows\1\lg_arrow_mp0r_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="1" name="Arrows\1\lg_arrow_mp2_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="2" name="Arrows\1\lg_arrow_mp4_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="3" name="Arrows\1\lg_arrow_mp6_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="4" name="Arrows\1\lg_arrow_mp8_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="5" name="Arrows\1\lg_arrow_mpA_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="6" name="Arrows\1\lg_arrow_mpC_1.png" offsety="0" />
+      <bitmap type="possible" grouped="1" side="middle" placement="normal" id="7" name="Arrows\1\lg_arrow_mpE_1.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="normal" id="0L" name="Arrows\2\lg_arrow_ln0l_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="normal" id="4" name="Arrows\2\lg_arrow_ln8_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="bottom" id="5" name="Arrows\2\lg_arrow_lnA_2a.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="normal" id="5" name="Arrows\2\lg_arrow_lnA_2b.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="bottom" id="6" name="Arrows\2\lg_arrow_lnC_2a.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="normal" id="6" name="Arrows\2\lg_arrow_lnC_2b.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="left" placement="normal" id="7" name="Arrows\2\lg_arrow_lnE_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="middle" placement="normal" id="1" name="Arrows\2\lg_arrow_mn2_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="middle" placement="normal" id="2" name="Arrows\2\lg_arrow_mnp_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="middle" placement="normal" id="3" name="Arrows\2\lg_arrow_mn6_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="middle" placement="normal" id="5" name="Arrows\2\lg_arrow_mnA_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="middle" placement="normal" id="6" name="Arrows\2\lg_arrow_mnC_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="middle" placement="normal" id="7" name="Arrows\2\lg_arrow_mnE_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="normal" id="0" name="Arrows\2\lg_arrow_rn0r_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="normal" id="1" name="Arrows\2\lg_arrow_rn2_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="bottom" id="2" name="Arrows\2\lg_arrow_rn4_2a.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="normal" id="2" name="Arrows\2\lg_arrow_rn4_2b.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="bottom" id="3" name="Arrows\2\lg_arrow_rn6_2a.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="normal" id="3" name="Arrows\2\lg_arrow_rn6_2b.png" offsety="0" />
+      <bitmap type="recommended" grouped="2" side="right" placement="normal" id="4" name="Arrows\2\lg_arrow_rn8_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="normal" id="0L" name="Arrows\2\lg_arrow_lp0l_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="normal" id="4" name="Arrows\2\lg_arrow_lp8_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="bottom" id="5" name="Arrows\2\lg_arrow_lpA_2a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="normal" id="5" name="Arrows\2\lg_arrow_lpA_2b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="bottom" id="6" name="Arrows\2\lg_arrow_lpC_2a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="normal" id="6" name="Arrows\2\lg_arrow_lpC_2b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="left" placement="normal" id="7" name="Arrows\2\lg_arrow_lpE_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="middle" placement="normal" id="1" name="Arrows\2\lg_arrow_mp2_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="middle" placement="normal" id="2" name="Arrows\2\lg_arrow_mpp_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="middle" placement="normal" id="3" name="Arrows\2\lg_arrow_mp6_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="middle" placement="normal" id="5" name="Arrows\2\lg_arrow_mpA_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="middle" placement="normal" id="6" name="Arrows\2\lg_arrow_mpC_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="middle" placement="normal" id="7" name="Arrows\2\lg_arrow_mpE_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="normal" id="0" name="Arrows\2\lg_arrow_rp0r_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="normal" id="1" name="Arrows\2\lg_arrow_rp2_2.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="bottom" id="2" name="Arrows\2\lg_arrow_rp4_2a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="normal" id="2" name="Arrows\2\lg_arrow_rp4_2b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="bottom" id="3" name="Arrows\2\lg_arrow_rp6_2a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="normal" id="3" name="Arrows\2\lg_arrow_rp6_2b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="2" side="right" placement="normal" id="4" name="Arrows\2\lg_arrow_rp8_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="normal" id="0L" name="Arrows\2\lg_arrow_lp0l_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="normal" id="4" name="Arrows\2\lg_arrow_lp8_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="bottom" id="5" name="Arrows\2\lg_arrow_lpA_2a.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="normal" id="5" name="Arrows\2\lg_arrow_lpA_2b.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="bottom" id="6" name="Arrows\2\lg_arrow_lpC_2a.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="normal" id="6" name="Arrows\2\lg_arrow_lpC_2b.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="left" placement="normal" id="7" name="Arrows\2\lg_arrow_lpE_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="middle" placement="normal" id="1" name="Arrows\2\lg_arrow_mp2_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="middle" placement="normal" id="2" name="Arrows\2\lg_arrow_mpp_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="middle" placement="normal" id="3" name="Arrows\2\lg_arrow_mp6_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="middle" placement="normal" id="5" name="Arrows\2\lg_arrow_mpA_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="middle" placement="normal" id="6" name="Arrows\2\lg_arrow_mpC_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="middle" placement="normal" id="7" name="Arrows\2\lg_arrow_mpE_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="normal" id="0" name="Arrows\2\lg_arrow_rp0r_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="normal" id="1" name="Arrows\2\lg_arrow_rp2_2.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="bottom" id="2" name="Arrows\2\lg_arrow_rp4_2a.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="normal" id="2" name="Arrows\2\lg_arrow_rp4_2b.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="bottom" id="3" name="Arrows\2\lg_arrow_rp6_2a.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="normal" id="3" name="Arrows\2\lg_arrow_rp6_2b.png" offsety="0" />
+      <bitmap type="possible" grouped="2" side="right" placement="normal" id="4" name="Arrows\2\lg_arrow_rp8_2.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="normal" id="0L" name="Arrows\3\lg_arrow_ln0l_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="normal" id="4" name="Arrows\3\lg_arrow_ln8_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="bottom" id="5" name="Arrows\3\lg_arrow_lnA_3a.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="normal" id="5" name="Arrows\3\lg_arrow_lnA_3b.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="bottom" id="6" name="Arrows\3\lg_arrow_lnC_3a.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="normal" id="6" name="Arrows\3\lg_arrow_lnC_3b.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="top" id="6" name="Arrows\3\lg_arrow_lnC_3c.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="left" placement="normal" id="7" name="Arrows\3\lg_arrow_lnE_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="0" name="Arrows\3\lg_arrow_mn0l_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="0L" name="Arrows\3\lg_arrow_mn0r_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="1" name="Arrows\3\lg_arrow_mn2_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="2" name="Arrows\3\lg_arrow_mn4_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="3" name="Arrows\3\lg_arrow_mn6_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="4" name="Arrows\3\lg_arrow_mn8_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="5" name="Arrows\3\lg_arrow_mnA_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="6" name="Arrows\3\lg_arrow_mnC_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="middle" placement="normal" id="7" name="Arrows\3\lg_arrow_mnE_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="normal" id="0" name="Arrows\3\lg_arrow_rn0r_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="normal" id="1" name="Arrows\3\lg_arrow_rn2_3.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="bottom" id="2" name="Arrows\3\lg_arrow_rn4_3a.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="normal" id="2" name="Arrows\3\lg_arrow_rn4_3b.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="top" id="2" name="Arrows\3\lg_arrow_rn4_3c.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="bottom" id="3" name="Arrows\3\lg_arrow_rn6_3a.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="normal" id="3" name="Arrows\3\lg_arrow_rn6_3b.png" offsety="0" />
+      <bitmap type="recommended" grouped="3" side="right" placement="normal" id="4" name="Arrows\3\lg_arrow_rn8_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="normal" id="0L" name="Arrows\3\lg_arrow_lp0l_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="normal" id="4" name="Arrows\3\lg_arrow_lp8_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="bottom" id="5" name="Arrows\3\lg_arrow_lpA_3a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="normal" id="5" name="Arrows\3\lg_arrow_lpA_3b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="bottom" id="6" name="Arrows\3\lg_arrow_lpC_3a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="normal" id="6" name="Arrows\3\lg_arrow_lpC_3b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="top" id="6" name="Arrows\3\lg_arrow_lpC_3c.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="left" placement="normal" id="7" name="Arrows\3\lg_arrow_lpE_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="0" name="Arrows\3\lg_arrow_mp0l_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="0L" name="Arrows\3\lg_arrow_mp0r_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="1" name="Arrows\3\lg_arrow_mp2_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="2" name="Arrows\3\lg_arrow_mp4_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="3" name="Arrows\3\lg_arrow_mp6_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="4" name="Arrows\3\lg_arrow_mp8_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="5" name="Arrows\3\lg_arrow_mpA_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="6" name="Arrows\3\lg_arrow_mpC_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="middle" placement="normal" id="7" name="Arrows\3\lg_arrow_mpE_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="normal" id="0" name="Arrows\3\lg_arrow_rp0r_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="normal" id="1" name="Arrows\3\lg_arrow_rp2_3.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="bottom" id="2" name="Arrows\3\lg_arrow_rp4_3a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="normal" id="2" name="Arrows\3\lg_arrow_rp4_3b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="top" id="2" name="Arrows\3\lg_arrow_rp4_3c.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="bottom" id="3" name="Arrows\3\lg_arrow_rp6_3a.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="normal" id="3" name="Arrows\3\lg_arrow_rp6_3b.png" offsety="0" />
+      <bitmap type="not_allowed" grouped="3" side="right" placement="normal" id="4" name="Arrows\3\lg_arrow_rp8_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="normal" id="0L" name="Arrows\3\lg_arrow_lp0l_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="normal" id="4" name="Arrows\3\lg_arrow_lp8_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="bottom" id="5" name="Arrows\3\lg_arrow_lpA_3a.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="normal" id="5" name="Arrows\3\lg_arrow_lpA_3b.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="bottom" id="6" name="Arrows\3\lg_arrow_lpC_3a.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="normal" id="6" name="Arrows\3\lg_arrow_lpC_3b.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="top" id="6" name="Arrows\3\lg_arrow_lpC_3c.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="left" placement="normal" id="7" name="Arrows\3\lg_arrow_lpE_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="0" name="Arrows\3\lg_arrow_mp0l_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="0L" name="Arrows\3\lg_arrow_mp0r_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="1" name="Arrows\3\lg_arrow_mp2_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="2" name="Arrows\3\lg_arrow_mp4_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="3" name="Arrows\3\lg_arrow_mp6_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="4" name="Arrows\3\lg_arrow_mp8_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="5" name="Arrows\3\lg_arrow_mpA_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="6" name="Arrows\3\lg_arrow_mpC_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="middle" placement="normal" id="7" name="Arrows\3\lg_arrow_mpE_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="normal" id="0" name="Arrows\3\lg_arrow_rp0r_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="normal" id="1" name="Arrows\3\lg_arrow_rp2_3.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="bottom" id="2" name="Arrows\3\lg_arrow_rp4_3a.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="normal" id="2" name="Arrows\3\lg_arrow_rp4_3b.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="top" id="2" name="Arrows\3\lg_arrow_rp4_3c.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="bottom" id="3" name="Arrows\3\lg_arrow_rp6_3a.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="normal" id="3" name="Arrows\3\lg_arrow_rp6_3b.png" offsety="0" />
+      <bitmap type="possible" grouped="3" side="right" placement="normal" id="4" name="Arrows\3\lg_arrow_rp8_3.png" offsety="0" />
+      <bitmap type="separator" id="solid" name="lg_separator_solid.png" width="1" offsety="0" />
+      <bitmap type="separator" id="dashed" name="lg_separator_dashed_standard.png" width="1" offsety="0" />
+      <bitmap type="background" id="standard" name="lg_background_standard.png" offsety="0" />
+      <bitmap type="etc" id="left" name="lg_etc_without_shoulder_left.png" offsety="0" />
+      <bitmap type="etc" id="right" name="lg_etc_without_shoulder_right.png" offsety="0" />
+      <bitmap type="mask" id="standard" name="Maske.png" />
+      <bitmap type="speciallane" id="bustaxi" name="lg_bus.png" />
+    </drawingconfiguration>
+  </component>
+  <component name="bytearray">
+    <position x="0" y="180" width="100" height="1" />
+    <color dccolor="0x00000000" />
+    <datafile mode="off" name="annotation_follow_off.bin" />
+    <datafile mode="on" name="annotation_follow_on.bin" />
+  </component>
+</guidanceviewconfig>
