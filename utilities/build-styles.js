@@ -39,7 +39,8 @@ const ROAD_CLASSES = ['motorway', 'dualcarriageway', 'expressway', 'countryroad'
 //   skyTop, skyHorizon, haze: the 3D sky and the haze at the horizon
 //   route: the route line for the fast, short, economical, custom 1 and custom 2 route types
 //   alternatives: the alternative routes, which the route list tells apart by colour
-//   routeCore: the centre line of a route
+//   routeCore: the centre line of a route. A route or alternative given as [edge, core] has its
+//     own core instead.
 //   ok, warnLight, warn, danger, muted, flowEdge: traffic flow and incident colours
 //   trafficWash: how far, from 0 to 1, the traffic map washes colours towards the land colour
 //   dtm(height, metresPerPixel): the terrain colour at a height, for each zoom range
@@ -121,16 +122,17 @@ function expand(p, model) {
   set('fog', p.haze, p.haze);
   // routes: one colour per route type; later legs get a paler core
   const routeColour = { fast: p.route[0], short: p.route[1], economic: p.route[2], custom1: p.route[3], custom2: p.route[4] };
+  const edgeAndCore = (c) => (Array.isArray(c) ? c : [c, p.routeCore]);
   for (const name of model.entries.keys()) {
     const m = /^route_(fast|short|economic|custom1|custom2)(?:_alternative(\d))?_(.+)$/.exec(name);
     if (!m) continue;
-    const band = m[1] === 'custom2' && m[2] ? p.alternatives[(+m[2] - 1) % p.alternatives.length] : routeColour[m[1]];
+    const [band, core] = edgeAndCore(m[1] === 'custom2' && m[2] ? p.alternatives[(+m[2] - 1) % p.alternatives.length] : routeColour[m[1]]);
     const leg = mix(band, p.land, 0.62);
     const role = m[3];
     if (role === 'waypoint_route_manual_marker') set(name, leg, band);
     else if (/^active_subtour_(\d+)$/.test(role) && role !== 'active_subtour_1') set(name, band, leg);
     else if (role === 'waypoint_route' || role === 'waypoint_route_automatic_marker') set(name, band, leg);
-    else set(name, band, p.routeCore);
+    else set(name, band, core);
   }
   set('route_blocking', p.danger, p.danger);
   // traffic flow, and incidents by the colour the stock file gave them

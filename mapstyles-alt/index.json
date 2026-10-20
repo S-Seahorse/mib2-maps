@@ -23,6 +23,12 @@
       "name": "Folio",
       "description": "After map65's Folio theme, Garamond-era print and Gray's Anatomy plates: ink on warm paper, arterial-red motorways, venous-blue main roads, an ink-black route and sepia relief; a radiograph at night, bone-white on blue-black film. Not yet tried on the car.",
       "base": "audi"
+    },
+    {
+      "id": "allroad",
+      "name": "Allroad",
+      "description": "Muted beiges and forest greens for the A4 allroad: oat and gravel land, deep fir and sage woodland, slate lakes, sand main roads and cognac motorways with a forest-green casing, like the car's wheel-arch cladding; a forest after dark at night. Not yet tried on the car.",
+      "base": "audi"
     }
   ]
 }

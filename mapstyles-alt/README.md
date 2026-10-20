@@ -44,7 +44,7 @@ To update a style that's already here, pick it in the previewer, make your chang
 To remove a style, delete its folder and its entry in `index.json`.
 
 ### Styles built from palettes
-**quadro**, **carta** and **folio** are built from the palettes in [utilities/palettes](../utilities/palettes): a few dozen colours each for day and night, which [build-styles.js](../utilities/build-styles.js) spreads over the stock Audi files (its comments list what each palette colour covers). To change one of these styles, edit its palette and rebuild it:
+**quadro**, **carta**, **folio** and **allroad** are built from the palettes in [utilities/palettes](../utilities/palettes): a few dozen colours each for day and night, which [build-styles.js](../utilities/build-styles.js) spreads over the stock Audi files (its comments list what each palette colour covers). To change one of these styles, edit its palette and rebuild it:
 ```sh
 node utilities/build-styles.js quadro
 ```
@@ -59,10 +59,11 @@ node utilities/deploy.js --style ios-15 --dest-path /mnt/app/navigation/resource
 See the main [README](../README.md#deploying-to-the-car) for the head-unit folder and the first-run checks.
 
 ## The styles here
-None of these has been tried on the car yet. All of them change colours only: every entry keeps the stock Audi file's shown, hidden and pattern settings, and the satellite map keeps Audi's white labels for legibility over imagery.
+None of these has been tried on the car yet. All of them change colours only: every entry keeps the stock Audi file's shown, hidden and pattern settings, and the satellite map keeps Audi's white city and road labels for legibility over imagery (other labels, such as water names, follow the style).
 
 * **ios-15**: the iOS 15-inspired colours from [mib2-mapbuilder](../mib2-mapbuilder) (made for VW Discover Pro), applied to the Audi files by entry name, with flat land colours in place of Audi's terrain shading.
 * **quadro**, **carta** and **folio** (built from [palettes](../utilities/palettes), see above) take their colours from the three themes of the [map65](https://github.com/S-Seahorse/map65) exam planner (`css/skin-*.css`). Each traffic map is the same style washed towards the land colour, so the traffic colours stand out, and traffic uses each theme's own success, warning and danger colours.
   * **quadro**: after Quadro, a modern take on Mac OS 8–9 Platinum. By day, white roads with hairline outlines on a platinum desk, lavender motorways (the selection highlight), Stickies-yellow main roads and a focus-blue route. At night, near-black warm graphite with the theme's lighter lavender and blue.
   * **carta**: after Carta, an atlas and encyclopaedia look. By day, ivory paper with ultramarine ink, atlas-red motorways, antique-gold main roads, an ultramarine route, hypsometric height tints and a gold-lit horizon. At night, the planetarium: navy land and water with gold motorways and gold place names.
   * **folio**: after Folio, Garamond-era print and Gray's Anatomy plates. By day, ink on warm paper with arterial-red motorways, venous-blue main roads, an ink-black route and relief in sepia. At night, the radiograph: blue-black film with bone-white streets and route, red motorways and blue main roads.
+* **allroad** (built from a [palette](../utilities/palettes/allroad.js)): muted beiges and forest greens for the A4 allroad quattro, a luxury estate with an off-road side. By day, oat and gravel land, deep fir and sage woodland, slate-grey lakes, sand main roads and cognac motorways with a forest-green casing, like the car's contrasting wheel-arch cladding, with an alpine-blue route. At night, a forest after dark: green-black land, lifted forest greens and warm brass roads. Its traffic colours are brighter than stock so slow traffic stands out from the cognac motorways, and each route type has its own core colour.
