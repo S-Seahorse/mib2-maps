@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MIB2 Map Style Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Preview and recolour the MIB2 navigation map styles for the Audi A4 MMI Navigation plus, then export a MapConfigs folder for the head unit.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Saira+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="2" y="6" width="28" height="20" rx="4" class="bm-frame"/>
+      <path d="M5 21 L12 13 L17 18 L22 11 L27 17" class="bm-road"/>
+      <circle cx="12" cy="13" r="2" class="bm-dot"/>
+    </svg>
+    <div class="brand-text">
+      <h1>MIB2 Map Style Lab</h1>
+      <p class="source" data-source>Loading the stock styles…</p>
+    </div>
+  </div>
+  <div class="actions">
+    <span class="edit-count" data-edit-count>No changes yet</span>
+    <button type="button" class="button ghost icon-only" id="undo" disabled aria-label="Undo" title="Undo (Ctrl+Z)">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5 3 9l4 4M3.5 9H12a5 5 0 0 1 0 10h-2"/></svg>
+    </button>
+    <button type="button" class="button ghost icon-only" id="redo" disabled aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m13 5 4 4-4 4M16.5 9H8a5 5 0 0 0 0 10h2"/></svg>
+    </button>
+    <button type="button" class="button ghost" id="back-to-stock" hidden>Back to stock files</button>
+    <button type="button" class="button" id="open-files">Open files</button>
+    <input type="file" id="file-picker" accept=".mxf,.gz,.fcx" multiple hidden>
+    <input type="file" id="theme-picker" accept=".json,application/json" hidden>
+    <div class="menu">
+      <button type="button" class="button primary" id="export-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="export-menu">Export</button>
+      <div class="menu-panel" id="export-menu" hidden>
+        <button type="button" class="menu-item" id="export-zip">
+          <strong>MapConfigs folder</strong>
+          <span>A .zip of every loaded file with your colours, ready to copy to the head unit</span>
+        </button>
+        <label class="menu-check"><input type="checkbox" id="export-plain"> Save unpacked (.mxf) instead of keeping the original .mxf.gz names</label>
+        <button type="button" class="menu-item" id="export-style">
+          <strong>Map style folder</strong>
+          <span>This style as a folder for mapstyles-alt/, with an updated index.json, so it appears in the style picker</span>
+        </button>
+        <button type="button" class="menu-item" id="export-theme">
+          <strong>Colour theme</strong>
+          <span>Just your changes, as JSON in the mib2-mapbuilder colour format</span>
+        </button>
+        <hr>
+        <button type="button" class="menu-item" id="import-theme"><strong>Import a theme…</strong></button>
+        <button type="button" class="menu-item danger" id="reset-all"><strong>Reset all colours</strong></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage is-loading" aria-label="Map preview">
+    <div class="stage-bar">
+      <div class="style-picker">
+        <label class="select-label set-picker" for="style-set"><span class="visually-hidden">Map style</span>
+          <select id="style-set"></select>
+        </label>
+        <button type="button" class="button" id="new-style">New style</button>
+        <button type="button" class="button ghost" id="style-details" hidden>Details</button>
+      </div>
+      <div class="seg" role="group" aria-label="Day or night map">
+        <button type="button" data-set-mode="day" aria-pressed="true">Day</button>
+        <button type="button" data-set-mode="night" aria-pressed="false">Night</button>
+      </div>
+      <div class="seg" role="group" aria-label="Map type" id="map-type"></div>
+      <div class="seg" role="group" aria-label="Map perspective">
+        <button type="button" data-set-dim="2d" aria-pressed="false">2D</button>
+        <button type="button" data-set-dim="3d" aria-pressed="true">3D</button>
+      </div>
+      <div class="zoom" role="group" aria-label="Zoom">
+        <button type="button" class="button ghost icon-only" id="zoom-in" aria-label="Zoom in">+</button>
+        <span class="zoom-label" data-zoom-label aria-live="polite">200 m</span>
+        <button type="button" class="button ghost icon-only" id="zoom-out" aria-label="Zoom out">−</button>
+      </div>
+      <div class="seg" role="group" aria-label="Screen" id="screen-seg"></div>
+    </div>
+
+    <div class="bezel">
+      <div class="screen-host" id="screen-host">
+        <div class="hu-status" aria-hidden="true">
+          <span data-hu-route>Fast route</span>
+          <span class="hu-clock" data-hu-clock>12:00</span>
+          <span>17.0 °C</span>
+        </div>
+        <div class="hu-compass" aria-hidden="true"><b>N</b><span data-hu-mode>3D</span></div>
+        <div class="hu-zoombox" data-zoom-box aria-hidden="true"><span>200 m</span><i></i></div>
+        <div class="hu-compare-tag" aria-hidden="true">Original colours</div>
+        <div class="hu-empty">
+          <p>Drop .mxf or .mxf.gz files here, or use <strong>Open files</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage-foot">
+      <p class="hover-readout" data-hover>Click anything on the map to edit its colour</p>
+      <div class="stage-controls">
+        <label class="check"><input type="checkbox" id="layer-route"> Route</label>
+        <label class="check"><input type="checkbox" id="layer-traffic"> Traffic</label>
+        <label class="check"><input type="checkbox" id="layer-labels"> Labels</label>
+        <label class="select-label" for="route-type">Route type
+          <select id="route-type">
+            <option value="fast">Fast</option>
+            <option value="short">Short</option>
+            <option value="economic">Economical</option>
+            <option value="custom1">Custom 1</option>
+            <option value="custom2">Custom 2</option>
+          </select>
+        </label>
+        <button type="button" class="button ghost" id="recentre">Back to the car</button>
+        <button type="button" class="button" id="compare" aria-pressed="false" title="Hold to see the original colours">Hold to compare</button>
+      </div>
+      <p class="fineprint">Sample city “Ellery” is made up. Colours, line widths, zoom ranges and camera angles come from the loaded files; route and traffic shapes are approximate, and satellite imagery is simulated.</p>
+    </div>
+  </section>
+
+  <aside class="panel" aria-label="Colours">
+    <div class="panel-head">
+      <div class="panel-title">
+        <h2>Colours</h2>
+        <span class="panel-count" data-count></span>
+      </div>
+      <input type="search" id="colour-search" placeholder="Search, e.g. motorway, park, route" autocomplete="off" aria-label="Search colours">
+      <div class="seg wide" role="group" aria-label="Which colours to list">
+        <button type="button" data-filter="scene" aria-pressed="true">In the preview</button>
+        <button type="button" data-filter="all" aria-pressed="false">All</button>
+        <button type="button" data-filter="changed" aria-pressed="false">Edited</button>
+      </div>
+    </div>
+    <div class="panel-list" data-list>
+      <p class="empty">Loading MapConfig files…</p>
+    </div>
+  </aside>
+</main>
+
+<dialog id="style-dialog" class="dialog" aria-labelledby="style-dialog-title">
+  <form id="style-form" class="dialog-body">
+    <h2 id="style-dialog-title">New map style</h2>
+    <p class="dialog-intro" data-dialog-intro></p>
+    <label class="field" for="style-name">
+      <span>Name</span>
+      <input type="text" id="style-name" required maxlength="60" autocomplete="off" placeholder="e.g. Night blue">
+    </label>
+    <label class="field" for="style-desc">
+      <span>Description <em>(optional)</em></span>
+      <textarea id="style-desc" rows="3" maxlength="300" placeholder="What makes this style different"></textarea>
+    </label>
+    <p class="field-note" data-dialog-folder></p>
+    <div class="dialog-actions">
+      <button type="button" class="button ghost danger-text" id="style-delete" hidden>Delete draft</button>
+      <button type="button" class="button ghost" id="style-cancel">Cancel</button>
+      <button type="submit" class="button primary" id="style-save">Create style</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" role="status" aria-live="polite"></div>
+
+<script src="js/util.js"></script>
+<script src="js/mxf.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/render.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/library.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
