@@ -74,6 +74,8 @@
         if (t) frag.append(t);
       }
       if (this.filter !== 'changed' || api.isEditedAny('tuning')) frag.append(this.renderTuning());
+      const note = api.variantNote();
+      if (note) frag.prepend(el('p', { class: 'note variant-note', text: note }));
       if (!shown && !this.query && this.filter === 'changed') {
         frag.append(el('p', { class: 'empty', text: 'No colours edited yet. Pick a colour in the list, or click something on the map.' }));
       } else if (!shown && this.query) {
@@ -210,13 +212,19 @@
 
       const actions = el('div', { class: 'inspector-actions' });
       const names = member ? [member] : row.members;
-      if (names.some((n) => api.isEdited(n))) {
+      if (names.some((n) => api.hasOwnEdit(n))) {
         const reset = el('button', { type: 'button', class: 'button ghost', text: member ? 'Reset this entry' : 'Reset to original' });
         reset.addEventListener('click', () => {
           api.reset(names);
           this.render();
         });
         actions.append(reset);
+      }
+      if (row.primary === 'map_background') {
+        box.append(el('p', { class: 'note subtle', text: 'Land outside built-up areas takes the terrain colours (under Terrain colours, below) wherever they apply, as they do at every zoom in the Audi files. This colour shows only where they don\'t.' }));
+      }
+      if (names.some((n) => api.isEdited(n)) && !names.some((n) => api.hasOwnEdit(n))) {
+        box.append(el('p', { class: 'note subtle', text: 'This colour follows your change on the Standard map. Change it here to give this map its own colour.' }));
       }
       if (!names.some((n) => api.inScene(n))) box.append(el('p', { class: 'note subtle', text: 'The sample city does not show this one, but your change is saved into the exported files.' }));
       else if (!api.drawnNow(names)) box.append(el('p', { class: 'note subtle', text: 'Not drawn at this zoom or with these layers. Try another zoom level, the 3D view, or switching on Route and Traffic.' }));

@@ -141,12 +141,31 @@
     return m[1] === '0' ? 'day' : 'night';
   }
 
-  // Font ids in the .mxf point at fontdefinitions in fontconfig_default_0.fcx.
+  // Which map a config draws: the standard map, the labels and roads over
+  // satellite imagery (Audi), the traffic map, or the instrument cluster (VW kombi).
+  function variantFromName(name) {
+    if (/_sat_/i.test(name || '')) return 'sat';
+    if (/traffic/i.test(name || '')) return 'traffic';
+    if (/kombi/i.test(name || '')) return 'kombi';
+    return 'default';
+  }
+
+  // Font weight from a font file name, e.g. AudiTypeDisplayHighBold.ttf -> 700.
+  function fontWeight(path) {
+    if (/bold|semibold/i.test(path || '')) return 700;
+    if (/light/i.test(path || '')) return 300;
+    return 400;
+  }
+
+  // Font ids in the .mxf point at fontdefinitions in the font config
+  // (fontconfig_default_0.fcx for VW, fontconfig_audi_0.fcx for Audi).
   function parseFontConfig(text) {
     const fonts = new Map();
-    for (const m of text.matchAll(/<fontdefinition\s([^>]*?)>\s*<path\s+val="([^"]*)"/g)) {
+    // Audi definitions also carry a <style> element before the font's <path>.
+    for (const m of text.matchAll(/<fontdefinition\s([^>]*?)>([\s\S]*?)<\/fontdefinition>/g)) {
       const a = attrs(m[1]);
-      fonts.set(+a.id, { face: a.face || '', size: +a.size || 16, path: m[2] });
+      const path = /<path\s+val="([^"]*)"/.exec(m[2]);
+      if (path) fonts.set(+a.id, { face: a.face || '', size: +a.size || 16, path: path[1] });
     }
     return fonts;
   }
@@ -163,5 +182,5 @@
     return levels;
   }
 
-  MIB.mxf = { parse, serialize, modeFromName, parseFontConfig, parseZoomLevels };
+  MIB.mxf = { parse, serialize, modeFromName, variantFromName, fontWeight, parseFontConfig, parseZoomLevels };
 })((window.MIB = window.MIB || {}));

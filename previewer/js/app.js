@@ -1,55 +1,96 @@
-// Boots the previewer: loads the stock MapConfigs from mapstyles/, wires the
-// toolbar, keeps edits (with undo), and exports a ready-to-copy MapConfigs folder.
+// Boots the previewer: loads a stock style set (the Audi A4 styles by default),
+// wires the toolbar, keeps edits with undo, and exports a ready-to-copy
+// MapConfigs folder.
 (function (MIB) {
   'use strict';
-  const { el, store, gunzipIfNeeded, decodeText, encodeText, makeZip, saveFile, gzip, canGzip, normaliseHex } = MIB.util;
+  const { el, store, gunzipIfNeeded, decodeText, encodeText, makeZip, saveFile, gzip, normaliseHex } = MIB.util;
   const { sameSlot } = MIB.editorHelpers;
 
-  const STOCK_FILES = [
-    'MapConfigs/1280x640/mapconfig_default_0_DTM.mxf.gz',
-    'MapConfigs/1280x640/mapconfig_default_1_DTM.mxf.gz',
-    'MapConfigs/1280x640/mapconfig_default_kombi_0.mxf.gz',
-    'MapConfigs/1280x640/mapconfig_default_kombi_1.mxf.gz',
-    'MapConfigs/1280x640/mapconfig_traffic_kombi_0.mxf.gz',
-    'MapConfigs/1280x640/mapconfig_traffic_kombi_1.mxf.gz',
-    'MapConfigs/mapconfig_default_0_DTM.mxf.gz',
-    'MapConfigs/mapconfig_default_1_DTM.mxf.gz',
-    'MapConfigs/mapconfig_default_kombi_0.mxf.gz',
-    'MapConfigs/mapconfig_default_kombi_1.mxf.gz',
-    'MapConfigs/mapconfig_traffic_kombi_0.mxf.gz',
-    'MapConfigs/mapconfig_traffic_kombi_1.mxf.gz',
+  // The style sets in this repository. Each MapConfig file is a day (_0) or
+  // night (_1) config for one map type; `screens` are the displays the
+  // previewer can imitate, with the zoom table the head unit uses for each.
+  const STYLE_SETS = [
+    {
+      id: 'audi',
+      name: 'Audi A4 · MMI Navigation plus',
+      dir: 'mapstyles-audidefault/',
+      files: [
+        'MapConfigs/mapconfig_default_0_DTM.mxf.gz',
+        'MapConfigs/mapconfig_default_1_DTM.mxf.gz',
+        'MapConfigs/mapconfig_sat_default_0_DTM.mxf.gz',
+        'MapConfigs/mapconfig_sat_default_1_DTM.mxf.gz',
+        'MapConfigs/mapconfig_traffic_0.mxf.gz',
+        'MapConfigs/mapconfig_traffic_1.mxf.gz',
+      ],
+      fontConfig: 'MapConfigs/fontconfig_audi_0.fcx',
+      // Both displays use the same MapConfigs; only the zoom tables differ.
+      // The MMI map area is the 8.3" 1024x480 screen less its status bar.
+      screens: [
+        { id: 'mmi', label: 'MMI 1024×436', size: [1024, 436], zoom: 'pcconfig/1024x436/zoomlevel_instance0.xml.gz' },
+        { id: 'vc', label: 'Virtual Cockpit 1440×540', size: [1440, 540], zoom: 'pcconfig/1440x540/zoomlevel_instance0.xml.gz' },
+      ],
+    },
+    {
+      id: 'vw',
+      name: 'VW Discover Pro (reference)',
+      dir: 'mapstyles/',
+      files: [
+        'MapConfigs/1280x640/mapconfig_default_0_DTM.mxf.gz',
+        'MapConfigs/1280x640/mapconfig_default_1_DTM.mxf.gz',
+        'MapConfigs/1280x640/mapconfig_default_kombi_0.mxf.gz',
+        'MapConfigs/1280x640/mapconfig_default_kombi_1.mxf.gz',
+        'MapConfigs/1280x640/mapconfig_traffic_kombi_0.mxf.gz',
+        'MapConfigs/1280x640/mapconfig_traffic_kombi_1.mxf.gz',
+        'MapConfigs/mapconfig_default_0_DTM.mxf.gz',
+        'MapConfigs/mapconfig_default_1_DTM.mxf.gz',
+        'MapConfigs/mapconfig_default_kombi_0.mxf.gz',
+        'MapConfigs/mapconfig_default_kombi_1.mxf.gz',
+        'MapConfigs/mapconfig_traffic_kombi_0.mxf.gz',
+        'MapConfigs/mapconfig_traffic_kombi_1.mxf.gz',
+      ],
+      fontConfig: 'MapConfigs/fontconfig_default_0.fcx',
+      // Each VW screen size has its own MapConfigs folder, and the screen includes the status bar.
+      screens: [
+        { id: '1280x640', label: '1280×640', size: [1280, 640], folder: 'MapConfigs/1280x640/', zoom: 'pcconfig/zoomlevel_instance0.xml.gz', statusBar: true },
+        { id: '800x480', label: '800×480', size: [800, 480], folder: 'MapConfigs/', zoom: 'pcconfig/zoomlevel_instance0.xml.gz', statusBar: true },
+      ],
+    },
   ];
-  // The page lives in previewer/, next to mapstyles/. A copy hosted elsewhere
-  // can say where its mapstyles/ folder is with window.MIB_MAPSTYLES.
-  const BASES = window.MIB_MAPSTYLES ? [window.MIB_MAPSTYLES] : ['../mapstyles/', 'mapstyles/'];
-  const STORE_KEY = 'mib2-style-lab:v1:';
 
-  // Metric zoom steps from pcconfig/zoomlevel_instance0.xml, used if that file can't be loaded.
+  // The page lives in previewer/, beside the style folders. A copy hosted
+  // elsewhere can set window.MIB_STYLES_ROOT to where those folders are.
+  const ROOTS = window.MIB_STYLES_ROOT != null ? [window.MIB_STYLES_ROOT] : ['../', ''];
+  const STORE_KEY = 'mib2-style-lab:v2:';
+  const VARIANTS = ['default', 'sat', 'traffic', 'kombi'];
+  const VARIANT_LABELS = { default: 'Standard', sat: 'Satellite', traffic: 'Traffic', kombi: 'Cluster' };
+
+  // Metric zoom steps, used if a set's zoom table can't be loaded.
   const FALLBACK_ZOOM = [
     [30, 0.35], [50, 0.59], [75, 0.88], [100, 1.17], [150, 1.75], [200, 2.33], [300, 3.49], [400, 4.66], [500, 5.82],
-    [750, 8.73], [1000, 11.63], [1500, 17.45], [2000, 23.26], [3000, 34.89], [4000, 46.52], [5000, 58.14],
-  ].map(([metres, resolution]) => ({ metres, resolution }));
+    [750, 8.73], [1000, 11.63], [1500, 17.45], [2000, 23.26],
+  ].map(([metres, resolution]) => ({ metres, resolution, tilt: 34 }));
   const MAX_PREVIEW_RES = 24; // up to the 2 km step; further out the sample city runs out
-
-  const SCREENS = { '1280x640': [1280, 640], '800x480': [800, 480] };
 
   const emptyEdits = () => ({ entries: {}, dtm: {}, tuning: {} });
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
   const state = {
-    files: [], // { path, name, mode, model, gz }
+    set: STYLE_SETS[0],
+    loaded: {}, // set id -> { files, fontDefs, zoomBy, root }
+    files: [], // { path, name, mode, variant, screen, model, gz }
     fontDefs: null,
-    zoom: FALLBACK_ZOOM,
-    source: 'stock',
+    zoomBy: {},
+    source: STYLE_SETS[0].id,
     mode: 'day',
-    screen: '1280x640',
-    edits: { day: emptyEdits(), night: emptyEdits() },
+    variant: 'default',
+    screen: STYLE_SETS[0].screens[0].id,
+    edits: { day: {}, night: {} }, // mode -> variant -> { entries, dtm, tuning }
     history: [],
     future: [],
     pending: null,
     compare: false,
     view: {
-      zoomIndex: 5,
+      metres: 200,
       threeD: true,
       route: true,
       traffic: true,
@@ -76,14 +117,14 @@
     return /\.xml$/.test(plain) ? plain : `${plain}.xml`;
   }
 
-  async function fetchBytes(path) {
-    for (const base of BASES) {
+  async function fetchBytes(path, roots = ROOTS) {
+    for (const root of roots) {
       try {
-        const res = await fetch(base + servedName(path), { cache: 'no-cache' });
+        const res = await fetch(root + servedName(path), { cache: 'no-cache' });
         if (!res.ok || /text\/html/.test(res.headers.get('content-type') || '')) continue;
         const bytes = new Uint8Array(await res.arrayBuffer());
         if (!bytes.length) continue;
-        return await gunzipIfNeeded(bytes);
+        return { bytes: await gunzipIfNeeded(bytes), root };
       } catch (_) {
         /* try the next location */
       }
@@ -91,53 +132,110 @@
     return null;
   }
 
-  async function loadStock() {
+  // Which screen a file belongs to: VW keeps a MapConfigs folder per screen
+  // size; Audi files serve every screen (null).
+  function screenForPath(set, path) {
+    const folders = set.screens.filter((s) => s.folder != null);
+    if (!folders.length) return null;
+    const dir = path.slice(0, path.lastIndexOf('/') + 1);
+    const hit = folders.find((s) => dir === s.folder);
+    return hit ? hit.id : null;
+  }
+
+  function fileRecord(set, path, text, gz) {
+    const name = path.split('/').pop();
+    return {
+      path,
+      name,
+      mode: MIB.mxf.modeFromName(name) || state.mode,
+      variant: MIB.mxf.variantFromName(name),
+      screen: screenForPath(set, path),
+      model: MIB.mxf.parse(text, name),
+      gz,
+    };
+  }
+
+  async function loadSet(set) {
+    if (state.loaded[set.id]) return state.loaded[set.id];
     // Browsers don't let a page opened from disk read neighbouring files.
-    if (location.protocol === 'file:') return [];
-    const loaded = await Promise.all(STOCK_FILES.map(async (path) => ({ path, bytes: await fetchBytes(path) })));
+    if (location.protocol === 'file:') return null;
+    const results = await Promise.all(set.files.map((p) => fetchBytes(set.dir + p)));
     const files = [];
-    for (const { path, bytes } of loaded) {
-      if (!bytes) continue;
+    let root = null;
+    results.forEach((r, i) => {
+      if (!r) return;
+      root = root == null ? r.root : root;
       try {
-        const name = path.split('/').pop();
-        files.push({ path: path.replace(/\.gz$/, ''), name: name.replace(/\.gz$/, ''), mode: MIB.mxf.modeFromName(name), model: MIB.mxf.parse(decodeText(bytes), name), gz: true });
+        files.push(fileRecord(set, set.files[i].replace(/\.gz$/, ''), decodeText(r.bytes), /\.gz$/.test(set.files[i])));
       } catch (err) {
         console.warn(err);
       }
+    });
+    if (!files.length) return null;
+    const roots = [root];
+    const fcx = await fetchBytes(set.dir + set.fontConfig, roots);
+    const zoomBy = {};
+    await Promise.all(
+      set.screens.map(async (s) => {
+        const z = await fetchBytes(set.dir + s.zoom, roots);
+        const levels = z ? MIB.mxf.parseZoomLevels(decodeText(z.bytes)) : [];
+        zoomBy[s.id] = levels.length ? levels : FALLBACK_ZOOM;
+      })
+    );
+    const loaded = { files, fontDefs: fcx ? MIB.mxf.parseFontConfig(decodeText(fcx.bytes)) : null, zoomBy, root };
+    state.loaded[set.id] = loaded;
+    loadLabelFonts(set, loaded);
+    return loaded;
+  }
+
+  async function useSet(id) {
+    const set = STYLE_SETS.find((s) => s.id === id) || STYLE_SETS[0];
+    commitPending();
+    const loaded = await loadSet(set);
+    if (!loaded) {
+      toast(`The ${set.name} styles could not be loaded from ${set.dir}.`, true);
+      return false;
     }
-    const [fcx, zoom] = await Promise.all([fetchBytes('MapConfigs/fontconfig_default_0.fcx'), fetchBytes('pcconfig/zoomlevel_instance0.xml.gz')]);
-    if (fcx) state.fontDefs = MIB.mxf.parseFontConfig(decodeText(fcx));
-    if (zoom) {
-      const levels = MIB.mxf.parseZoomLevels(decodeText(zoom));
-      if (levels.length) state.zoom = levels;
-    }
-    return files;
+    state.set = set;
+    state.files = loaded.files;
+    state.fontDefs = loaded.fontDefs;
+    state.zoomBy = loaded.zoomBy;
+    state.source = set.id;
+    if (!set.screens.some((s) => s.id === state.screen)) state.screen = set.screens[0].id;
+    $('.stage').classList.remove('is-empty');
+    restoreEdits();
+    pickAvailable();
+    afterSourceChange();
+    return true;
   }
 
   async function openFiles(list) {
     const files = [];
     const problems = [];
+    let fontDefs = null;
     for (const file of list) {
       try {
-        const bytes = await gunzipIfNeeded(new Uint8Array(await file.arrayBuffer()));
-        const text = decodeText(bytes);
+        const text = decodeText(await gunzipIfNeeded(new Uint8Array(await file.arrayBuffer())));
         if (/\.fcx$/i.test(file.name) || /<xmlfontconfig/.test(text.slice(0, 400))) {
-          state.fontDefs = MIB.mxf.parseFontConfig(text);
+          fontDefs = MIB.mxf.parseFontConfig(text);
           continue;
         }
+        const gz = /\.gz$/i.test(file.name);
         const name = file.name.replace(/\.gz$/i, '');
-        const model = MIB.mxf.parse(text, file.name);
         const rel = (file.webkitRelativePath || '').replace(/\.gz$/i, '');
-        // Without a folder path, tell the screen sizes apart by their label
-        // fonts: 1280x640 configs use the large font ids (100 and up).
-        const city = model.fonts.find((f) => f.type === 'city_label');
-        const hr = rel ? /1280x640/.test(rel) : !!(city && city.id >= 100);
-        const path = rel && rel.includes('MapConfigs') ? rel.slice(rel.indexOf('MapConfigs')) : `MapConfigs/${hr ? '1280x640/' : ''}${name}`;
+        let path = rel && rel.includes('MapConfigs') ? rel.slice(rel.indexOf('MapConfigs')) : `MapConfigs/${name}`;
+        // VW keeps 1280x640 configs in their own folder. Without a folder path,
+        // tell them apart by their label fonts, which use ids of 100 and up.
+        if (!rel && state.set.id === 'vw') {
+          const model = MIB.mxf.parse(text, file.name);
+          const city = model.fonts.find((f) => f.type === 'city_label');
+          if (city && city.id >= 100) path = `MapConfigs/1280x640/${name}`;
+        }
         if (files.some((f) => f.path === path)) {
           problems.push(`${file.name} was opened twice; the first copy is used.`);
           continue;
         }
-        files.push({ path, name, mode: MIB.mxf.modeFromName(name) || state.mode, model, gz: /\.gz$/i.test(file.name) });
+        files.push(fileRecord(state.set, path, text, gz));
       } catch (err) {
         problems.push(err.message || `${file.name} could not be read.`);
       }
@@ -149,41 +247,116 @@
     commitPending();
     $('.stage').classList.remove('is-empty');
     state.files = files;
-    state.source = `custom:${files.map((f) => f.path).sort().join('|')}`;
+    if (fontDefs) state.fontDefs = fontDefs;
+    if (!Object.keys(state.zoomBy).length) state.zoomBy = Object.fromEntries(state.set.screens.map((s) => [s.id, FALLBACK_ZOOM]));
+    state.source = `custom:${state.set.id}:${files.map((f) => f.path).sort().join('|')}`;
     restoreEdits();
-    pickAvailableMode();
+    pickAvailable();
     afterSourceChange();
     toast(`Opened ${files.length} ${files.length === 1 ? 'file' : 'files'}${problems.length ? `. ${problems.length} could not be read` : ''}.`);
   }
 
-  function pickAvailableMode() {
+  // Keeps day/night, map type and screen on choices the loaded files offer.
+  function pickAvailable() {
     if (!state.files.some((f) => f.mode === state.mode)) state.mode = state.files[0].mode;
-    const hasHr = state.files.some((f) => /1280x640/.test(f.path));
-    const hasStd = state.files.some((f) => !/1280x640/.test(f.path));
-    if (state.screen === '1280x640' && !hasHr && hasStd) state.screen = '800x480';
-    if (state.screen === '800x480' && !hasStd && hasHr) state.screen = '1280x640';
+    const variants = variantsFor(state.mode);
+    if (!variants.includes(state.variant)) state.variant = variants[0];
+    const screens = availableScreens();
+    if (!screens.some((s) => s.id === state.screen)) state.screen = screens[0].id;
   }
 
-  function primary(mode = state.mode) {
-    const ofMode = state.files.filter((f) => f.mode === mode);
-    const hr = (f) => /1280x640/.test(f.path);
-    const pref = ofMode.filter((f) => (state.screen === '1280x640' ? hr(f) : !hr(f)));
-    const pool = pref.length ? pref : ofMode;
-    const f = pool.find((x) => /default_[01]_DTM/i.test(x.name)) || pool[0];
+  function variantsFor(mode) {
+    const present = new Set(state.files.filter((f) => f.mode === mode).map((f) => f.variant));
+    return VARIANTS.filter((v) => present.has(v));
+  }
+
+  function availableScreens() {
+    const screens = state.set.screens.filter((s) => state.files.some((f) => f.screen == null || f.screen === s.id));
+    return screens.length ? screens : state.set.screens;
+  }
+
+  function currentScreen() {
+    return state.set.screens.find((s) => s.id === state.screen) || state.set.screens[0];
+  }
+
+  // The file shown for a day/night mode, map type and screen.
+  function primaryFile(mode = state.mode, variant = state.variant) {
+    const pool = state.files.filter((f) => f.mode === mode && f.variant === variant);
+    const forScreen = pool.filter((f) => f.screen === state.screen);
+    const candidates = forScreen.length ? forScreen : pool.filter((f) => f.screen == null).length ? pool.filter((f) => f.screen == null) : pool;
+    return candidates.find((f) => /^mapconfig_(sat_)?default_[01]_DTM/i.test(f.name)) || candidates[0] || null;
+  }
+
+  function primary(mode, variant) {
+    const f = primaryFile(mode, variant);
     return f ? f.model : null;
   }
 
   // ---- edits ----------------------------------------------------------------
+  //
+  // Edits are stored per day/night mode and map type. An edit on the Standard
+  // map also applies to the other map types wherever they used the same colour
+  // as the Standard map, so the satellite and traffic maps follow along without
+  // losing the colours they deliberately do differently.
 
-  const edits = () => state.edits[state.mode];
+  function editsOf(mode, variant) {
+    const byMode = state.edits[mode] || (state.edits[mode] = {});
+    return byMode[variant] || (byMode[variant] = emptyEdits());
+  }
+
+  // The edit that applies to one slot of an entry in a file's model, or null.
+  function slotEdit(model, mode, variant, name, slot) {
+    const mine = model.entries.get(name);
+    if (!mine) return null;
+    const own = editsOf(mode, variant).entries[name];
+    if (own && own[slot]) {
+      const ref = primary(mode, variant);
+      const base = ref && ref.entries.get(name);
+      if (model === ref || (base && sameSlot(base[slot], mine[slot]))) return own[slot];
+    }
+    return inheritedSlot(model, mode, variant, name, slot);
+  }
+
+  function inheritedSlot(model, mode, variant, name, slot) {
+    if (variant === 'default') return null;
+    const std = editsOf(mode, 'default').entries[name];
+    if (!std || !std[slot]) return null;
+    const ref = primary(mode, 'default');
+    const base = ref && ref.entries.get(name);
+    const mine = model.entries.get(name);
+    return base && mine && sameSlot(base[slot], mine[slot]) ? std[slot] : null;
+  }
+
+  function dtmEdit(model, mode, variant, i) {
+    const d = model.dtm[i];
+    const match = (ref) => {
+      const b = ref && ref.dtm[i];
+      return ref === model || (b && d && b.color === d.color && b.height === d.height && b.resolution === d.resolution);
+    };
+    const own = editsOf(mode, variant).dtm[i];
+    if (own && match(primary(mode, variant))) return own;
+    if (variant === 'default') return null;
+    const std = editsOf(mode, 'default').dtm[i];
+    return std && match(primary(mode, 'default')) ? std : null;
+  }
+
+  function tuningEdit(model, mode, variant, name) {
+    const match = (ref) => ref === model || (ref && ref.tuning.get(name) === model.tuning.get(name));
+    const own = editsOf(mode, variant).tuning[name];
+    if (own != null && match(primary(mode, variant))) return own;
+    if (variant === 'default') return null;
+    const std = editsOf(mode, 'default').tuning[name];
+    return std != null && match(primary(mode, 'default')) ? std : null;
+  }
 
   function entry(name) {
     const model = primary();
     const base = model.entries.get(name);
-    if (state.compare) return base;
-    const e = edits().entries[name];
-    if (!e) return base;
-    return { name, pattern: base ? base.pattern : null, pen: e.pen || base.pen, brush: e.brush || base.brush };
+    if (!base || state.compare) return base;
+    const pen = slotEdit(model, state.mode, state.variant, name, 'pen');
+    const brush = slotEdit(model, state.mode, state.variant, name, 'brush');
+    if (!pen && !brush) return base;
+    return { name, pattern: base.pattern, pen: pen || base.pen, brush: brush || base.brush };
   }
 
   function baseEntry(name) {
@@ -193,9 +366,12 @@
   function setEntrySlot(name, slot, value) {
     const base = baseEntry(name);
     if (!base) return;
-    const map = edits().entries;
+    const map = editsOf(state.mode, state.variant).entries;
     const cur = map[name] || {};
-    if (sameSlot(base[slot], value)) delete cur[slot];
+    // Going back to the original only needs no edit, unless the Standard map's
+    // edit would otherwise show through.
+    const inherited = inheritedSlot(primary(), state.mode, state.variant, name, slot);
+    if (sameSlot(base[slot], value) && !inherited) delete cur[slot];
     else cur[slot] = { color: value.color, style: value.style };
     if (cur.pen || cur.brush) map[name] = cur;
     else delete map[name];
@@ -218,9 +394,19 @@
 
   function resetNames(names) {
     beginEdit();
-    for (const n of names) delete edits().entries[n];
+    const own = editsOf(state.mode, state.variant).entries;
+    for (const n of names) delete own[n];
     commitEdit();
     schedule();
+  }
+
+  function isEdited(name) {
+    const model = primary();
+    return !state.compare && model.entries.has(name) && entry(name) !== model.entries.get(name);
+  }
+
+  function hasOwnEdit(name) {
+    return !!editsOf(state.mode, state.variant).entries[name];
   }
 
   function beginEdit() {
@@ -242,36 +428,39 @@
   }
   const commitPending = commitEdit;
 
+  function restoreSnapshot(snapshot) {
+    state.edits = snapshot;
+    persist();
+    editor.render();
+    schedule();
+    updateChrome();
+  }
+
   function undo() {
     commitPending();
     const prev = state.history.pop();
     if (!prev) return;
     state.future.push(clone(state.edits));
-    state.edits = prev;
-    persist();
-    editor.render();
-    schedule();
-    updateChrome();
+    restoreSnapshot(prev);
   }
 
   function redo() {
     const next = state.future.pop();
     if (!next) return;
     state.history.push(clone(state.edits));
-    state.edits = next;
-    persist();
-    editor.render();
-    schedule();
-    updateChrome();
+    restoreSnapshot(next);
   }
 
-  function countEdits(e) {
-    return Object.keys(e.entries).length + Object.keys(e.dtm).length + Object.keys(e.tuning).length;
+  function countEdits(all = state.edits) {
+    let n = 0;
+    for (const byVariant of Object.values(all)) {
+      for (const e of Object.values(byVariant)) n += Object.keys(e.entries).length + Object.keys(e.dtm).length + Object.keys(e.tuning).length;
+    }
+    return n;
   }
 
   function persist() {
-    const total = countEdits(state.edits.day) + countEdits(state.edits.night);
-    if (total) store.set(STORE_KEY + state.source, state.edits);
+    if (countEdits()) store.set(STORE_KEY + state.source, state.edits);
     else store.remove(STORE_KEY + state.source);
   }
   let persistTimer = null;
@@ -284,44 +473,70 @@
     const saved = store.get(STORE_KEY + state.source);
     state.history = [];
     state.future = [];
-    if (saved && saved.day && saved.night) {
-      state.edits = { day: Object.assign(emptyEdits(), saved.day), night: Object.assign(emptyEdits(), saved.night) };
-      const n = countEdits(state.edits.day) + countEdits(state.edits.night);
+    state.edits = { day: {}, night: {} };
+    if (saved && typeof saved === 'object') {
+      for (const mode of ['day', 'night']) {
+        for (const [variant, e] of Object.entries(saved[mode] || {})) state.edits[mode][variant] = Object.assign(emptyEdits(), e);
+      }
+      const n = countEdits();
       if (n) setTimeout(() => toast(`Restored ${n} unsaved ${n === 1 ? 'change' : 'changes'} from your last visit.`), 300);
-    } else {
-      state.edits = { day: emptyEdits(), night: emptyEdits() };
     }
   }
 
   // ---- export / import --------------------------------------------------------
 
+  // Everything that changes in one file: its map type's own edits where it had
+  // the edited value, and Standard-map edits where it matched the Standard map.
+  function editsForFile(f) {
+    const out = emptyEdits();
+    for (const name of f.model.entries.keys()) {
+      const pen = slotEdit(f.model, f.mode, f.variant, name, 'pen');
+      const brush = slotEdit(f.model, f.mode, f.variant, name, 'brush');
+      if (pen || brush) out.entries[name] = Object.assign({}, pen && { pen }, brush && { brush });
+    }
+    f.model.dtm.forEach((_, i) => {
+      const hex = dtmEdit(f.model, f.mode, f.variant, i);
+      if (hex) out.dtm[i] = hex;
+    });
+    for (const name of f.model.tuning.keys()) {
+      const v = tuningEdit(f.model, f.mode, f.variant, name);
+      if (v != null) out.tuning[name] = v;
+    }
+    return out;
+  }
+
   async function exportZip() {
     commitPending();
-    const keepGz = $('#export-gz').checked && canGzip();
+    const plain = $('#export-plain').checked;
     const files = [];
+    let touched = 0;
     for (const f of state.files) {
-      const text = MIB.mxf.serialize(f.model, state.edits[f.mode] || emptyEdits());
-      let data = encodeText(text);
+      const fileEdits = editsForFile(f);
+      if (Object.keys(fileEdits.entries).length || Object.keys(fileEdits.dtm).length || Object.keys(fileEdits.tuning).length) touched += 1;
+      let data = encodeText(MIB.mxf.serialize(f.model, fileEdits));
       let path = f.path;
-      if (keepGz) {
+      // Keep each file as it came (gzipped stock files stay .mxf.gz), so the
+      // names match the files on the head unit and replace them.
+      if (f.gz && !plain) {
         data = await gzip(data);
         path += '.gz';
       }
       files.push({ path, data });
     }
-    const changed = countEdits(state.edits.day) + countEdits(state.edits.night);
+    const changed = countEdits();
     files.push({
       path: 'README.txt',
       data: encodeText(
         [
-          'MapConfigs exported from the MIB2 Map Style Lab (previewer/ in mib2-maps).',
+          `MapConfigs exported from the MIB2 Map Style Lab (previewer/ in mib2-maps) for ${state.set.name}.`,
           '',
-          `${changed} colour ${changed === 1 ? 'change' : 'changes'} across ${files.length} files. Day files end in _0, night files in _1.`,
-          'Only colour, visibility and display-tuning values differ from the files you started with.',
+          `${changed} colour ${changed === 1 ? 'change' : 'changes'}, written to ${touched} of ${state.files.length} files. Day files end in _0, night files in _1.`,
+          'Only colour, visibility and display-tuning values differ from the files you started with,',
+          'and the file names match the originals.',
           '',
-          'To try it on the car, replace the MapConfigs folder in the deploy/ folder built by',
-          'utilities/deploy_scp.ps1, or copy these files over the MapConfigs folder in',
-          '/mnt/app/navigation/resources/app/vw/<region>/ on the head unit. Back up the original first.',
+          'To try it on the car, unzip this and run utilities/deploy_scp.ps1 -mapConfigs <unzipped folder>,',
+          'or copy the MapConfigs folder over the one in the map style folder these files came from',
+          'on the head unit. Back up the original first.',
           '',
         ].join('\r\n')
       ),
@@ -344,13 +559,20 @@
     commitPending();
     const theme = {
       format: 'mib2-maps-theme',
-      version: 1,
-      note: 'Colours use #RRGGBBAA. "outline" is the pen colour and "fill" the brush colour, as in mib2-mapbuilder.',
-      day: themeSection(state.edits.day, primary('day') || primary()),
-      night: themeSection(state.edits.night, primary('night') || primary()),
+      version: 2,
+      styleSet: state.set.id,
+      note: 'Colours use #RRGGBBAA. "outline" is the pen colour and "fill" the brush colour, as in mib2-mapbuilder. Each mode lists its map types: default (standard), sat, traffic.',
+      day: {},
+      night: {},
     };
+    for (const mode of ['day', 'night']) {
+      for (const [variant, e] of Object.entries(state.edits[mode])) {
+        const model = primary(mode, variant);
+        if (model && (Object.keys(e.entries).length || Object.keys(e.dtm).length || Object.keys(e.tuning).length)) theme[mode][variant] = themeSection(e, model);
+      }
+    }
     const blob = new Blob([JSON.stringify(theme, null, 2)], { type: 'application/json' });
-    await save('mib2-map-theme.json', blob);
+    await save(`${state.set.id}-map-theme.json`, blob);
   }
 
   async function save(name, blob) {
@@ -373,7 +595,7 @@
     }
     const read = (section, model) => {
       const out = emptyEdits();
-      if (!section) return out;
+      if (!section || !model) return out;
       const list = Array.isArray(section) ? section : section.colours || [];
       for (const c of list) {
         if (!c || !model.entries.has(c.name)) continue;
@@ -390,27 +612,36 @@
       }
       return out;
     };
-    beginEdit();
+    const next = { day: {}, night: {} };
     if (Array.isArray(data)) {
-      state.edits[state.mode] = read(data, primary());
+      // A bare mib2-mapbuilder colour list: apply it to what's on screen.
+      next[state.mode][state.variant] = read(data, primary());
     } else if (data && (data.day || data.night)) {
-      if (primary('day')) state.edits.day = read(data.day, primary('day'));
-      if (primary('night')) state.edits.night = read(data.night, primary('night'));
+      for (const mode of ['day', 'night']) {
+        const section = data[mode];
+        if (!section) continue;
+        // Version 1 themes held one map type per mode.
+        const byVariant = section.colours || Array.isArray(section) ? { default: section } : section;
+        for (const [variant, s] of Object.entries(byVariant)) {
+          if (VARIANTS.includes(variant) && primary(mode, variant)) next[mode][variant] = read(s, primary(mode, variant));
+        }
+      }
     } else {
-      state.pending = null;
       toast('This JSON has no "day" or "night" colours. Choose a theme exported from this page.', true);
       return;
     }
+    beginEdit();
+    state.edits = next;
     commitEdit();
     editor.render();
     schedule();
-    const n = countEdits(state.edits.day) + countEdits(state.edits.night);
+    const n = countEdits();
     toast(`Imported a theme with ${n} ${n === 1 ? 'change' : 'changes'}.`);
   }
 
   function resetAll() {
     beginEdit();
-    state.edits = { day: emptyEdits(), night: emptyEdits() };
+    state.edits = { day: {}, night: {} };
     commitEdit();
     editor.render();
     schedule();
@@ -427,28 +658,44 @@
   function inScene(name) {
     if (MIB.scene.drawn.has(name)) return true;
     if (routeNames().includes(name)) return true;
+    if (state.variant === 'sat' && /^satcopyright_/.test(name)) return true;
     return MIB.scene.events.some((ev) => `tmc_${ev.event}_${ev.side}` === name);
   }
 
   function styleFor() {
     const model = primary();
+    const { mode, variant } = state;
     return {
       model,
       fontDefs: state.fontDefs,
       entry,
-      tuning: (n) => (!state.compare && edits().tuning[n] != null ? edits().tuning[n] : model.tuning.get(n)),
-      dtm: () => (state.compare ? model.dtm : model.dtm.map((d, i) => (edits().dtm[i] ? { ...d, color: edits().dtm[i] } : d))),
+      tuning: (n) => {
+        const v = state.compare ? null : tuningEdit(model, mode, variant, n);
+        return v != null ? v : model.tuning.get(n);
+      },
+      dtm: () => (state.compare ? model.dtm : model.dtm.map((d, i) => Object.assign({}, d, { color: dtmEdit(model, mode, variant, i) || d.color }))),
     };
   }
 
   function zoomLevels() {
-    return state.zoom.filter((z) => z.resolution <= MAX_PREVIEW_RES);
+    const levels = state.zoomBy[state.screen] || FALLBACK_ZOOM;
+    return levels.filter((z) => z.resolution <= MAX_PREVIEW_RES);
+  }
+
+  // Zoom is kept as the scale-bar distance, so it survives switching screens.
+  function zoomIndex() {
+    const levels = zoomLevels();
+    let best = 0;
+    levels.forEach((z, i) => {
+      if (Math.abs(Math.log(z.metres / state.view.metres)) < Math.abs(Math.log(levels[best].metres / state.view.metres))) best = i;
+    });
+    return best;
   }
 
   function viewFor() {
-    const z = zoomLevels()[state.view.zoomIndex];
-    const [w, h] = SCREENS[state.screen];
-    return Object.assign({}, state.view, { res: z.resolution, screenW: w, screenH: h });
+    const z = zoomLevels()[zoomIndex()];
+    const [w, h] = currentScreen().size;
+    return Object.assign({}, state.view, { res: z.resolution, tilt: z.tilt, screenW: w, screenH: h, satellite: state.variant === 'sat' });
   }
 
   let frame = 0;
@@ -456,7 +703,7 @@
     if (frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
-      if (!primary()) return;
+      if (!state.files.length || !primary()) return;
       renderer.setStyle(styleFor());
       renderer.setView(viewFor());
       renderer.render();
@@ -469,14 +716,15 @@
   }
 
   function zoomLabelFor(res) {
-    let best = state.zoom[0];
-    for (const z of state.zoom) if (z.resolution <= res * 1.02) best = z;
-    return res <= state.zoom[0].resolution ? 'all zooms' : `${zoomLabel(best.metres)} and out`;
+    const levels = state.zoomBy[state.screen] || FALLBACK_ZOOM;
+    let best = levels[0];
+    for (const z of levels) if (z.resolution <= res * 1.02) best = z;
+    return res <= levels[0].resolution ? 'all zooms' : `${zoomLabel(best.metres)} and out`;
   }
 
   function updateScreenChrome() {
-    const z = zoomLevels()[state.view.zoomIndex];
-    const [w] = SCREENS[state.screen];
+    const z = zoomLevels()[zoomIndex()];
+    const [w] = currentScreen().size;
     $('[data-zoom-label]').textContent = zoomLabel(z.metres);
     const box = $('[data-zoom-box]');
     box.querySelector('span').textContent = zoomLabel(z.metres);
@@ -487,34 +735,70 @@
     $('[data-hu-mode]').textContent = state.view.threeD ? '3D' : '2D';
     const now = new Date();
     $('[data-hu-clock]').textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // VW screens include the status bar; the Audi map area sits below it.
+    $('.hu-status').hidden = !currentScreen().statusBar;
     const stage = $('.stage');
     stage.dataset.mode = state.mode;
     stage.classList.toggle('is-comparing', state.compare);
+  }
+
+  function segButtons(container, items, current, onPick) {
+    container.replaceChildren(
+      ...items.map((it) => {
+        const b = el('button', { type: 'button', 'aria-pressed': String(it.id === current), text: it.label, disabled: it.disabled });
+        b.addEventListener('click', () => onPick(it.id));
+        return b;
+      })
+    );
+    container.hidden = items.length < 2;
   }
 
   function updateChrome() {
     $('#export-toggle').disabled = !state.files.length;
     $('#undo').disabled = !state.history.length && !state.pending;
     $('#redo').disabled = !state.future.length;
-    const n = countEdits(state.edits.day) + countEdits(state.edits.night);
+    const n = countEdits();
     $('[data-edit-count]').textContent = n ? `${n} ${n === 1 ? 'change' : 'changes'}` : 'No changes yet';
-    const stock = state.source === 'stock';
-    const rev = state.files.length;
+    const custom = state.source.startsWith('custom:');
+    const count = state.files.length;
     const days = state.files.filter((f) => f.mode === 'day').length;
-    $('[data-source]').textContent = stock
-      ? `Stock VW styles from mapstyles/MapConfigs · ${rev} files`
-      : `Your files · ${rev} MapConfig ${rev === 1 ? 'file' : 'files'} (${days} day, ${rev - days} night)`;
-    $('#back-to-stock').hidden = stock || !state.stockFiles || !state.stockFiles.length;
+    $('[data-source]').textContent = custom
+      ? `Your files · ${count} MapConfig ${count === 1 ? 'file' : 'files'} (${days} day, ${count - days} night)`
+      : `Stock styles from ${state.set.dir}MapConfigs · ${count} files`;
+    $('#back-to-stock').hidden = !custom || !state.loaded[state.set.id];
+    const picker = $('#style-set');
+    picker.value = state.set.id;
     for (const b of document.querySelectorAll('[data-set-mode]')) {
       b.setAttribute('aria-pressed', String(b.dataset.setMode === state.mode));
       b.disabled = !state.files.some((f) => f.mode === b.dataset.setMode);
     }
-    for (const b of document.querySelectorAll('[data-set-screen]')) {
-      b.setAttribute('aria-pressed', String(b.dataset.setScreen === state.screen));
-      const hr = b.dataset.setScreen === '1280x640';
-      b.disabled = !state.files.some((f) => /1280x640/.test(f.path) === hr);
-    }
+    segButtons(
+      $('#map-type'),
+      variantsFor(state.mode).map((v) => ({ id: v, label: VARIANT_LABELS[v] })),
+      state.variant,
+      (v) => {
+        commitPending();
+        state.variant = v;
+        if (v === 'traffic') {
+          state.view.traffic = true;
+          $('#layer-traffic').checked = true;
+        }
+        afterSourceChange();
+      }
+    );
+    segButtons(
+      $('#screen-seg'),
+      availableScreens().map((s) => ({ id: s.id, label: s.label })),
+      state.screen,
+      (id) => {
+        state.screen = id;
+        afterSourceChange();
+      }
+    );
     for (const b of document.querySelectorAll('[data-set-dim]')) b.setAttribute('aria-pressed', String((b.dataset.setDim === '3d') === state.view.threeD));
+    const levels = zoomLevels();
+    $('#zoom-in').disabled = zoomIndex() === 0;
+    $('#zoom-out').disabled = zoomIndex() === levels.length - 1;
   }
 
   function afterSourceChange() {
@@ -535,6 +819,11 @@
     return MIB.catalog.humanise(name);
   }
 
+  function variantNote() {
+    if (state.variant === 'default' || !variantsFor(state.mode).includes('default')) return null;
+    return `${VARIANT_LABELS[state.variant]} map: colours you change on the Standard map also apply here wherever both maps used the same colour. Changes made here apply to the ${VARIANT_LABELS[state.variant].toLowerCase()} map only.`;
+  }
+
   // ---- interaction ----------------------------------------------------------------
 
   function toast(text, isError) {
@@ -547,10 +836,9 @@
   }
 
   function setZoom(i) {
-    const max = zoomLevels().length - 1;
-    state.view.zoomIndex = Math.max(0, Math.min(max, i));
-    $('#zoom-in').disabled = state.view.zoomIndex === 0;
-    $('#zoom-out').disabled = state.view.zoomIndex === max;
+    const levels = zoomLevels();
+    state.view.metres = levels[Math.max(0, Math.min(levels.length - 1, i))].metres;
+    updateChrome();
     schedule();
   }
 
@@ -565,6 +853,7 @@
     const hover = $('[data-hover]');
     let drag = null;
     let hoverFrame = 0;
+    let wheelLock = false;
 
     const local = (e) => {
       const r = host.getBoundingClientRect();
@@ -576,12 +865,13 @@
     };
 
     host.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || !renderer.L) return;
       host.setPointerCapture(e.pointerId);
       const [X, Y] = local(e);
       drag = { X, Y, start: worldAt(X, Y), cx: state.view.cx, cy: state.view.cy, moved: false };
     });
     host.addEventListener('pointermove', (e) => {
+      if (!renderer.L) return;
       const [X, Y] = local(e);
       if (drag) {
         if (Math.hypot(X - drag.X, Y - drag.Y) > 4) drag.moved = true;
@@ -592,7 +882,7 @@
         renderer.setView(viewFor());
         renderer.layout();
         const now = worldAt(X, Y);
-        if (!Number.isFinite(now[0]) || Y < renderer.L.Yh + 8) return;
+        if (!Number.isFinite(now[0]) || Y < renderer.L.Ytop + 8) return;
         state.view.cx = drag.cx + (drag.start[0] - now[0]);
         state.view.cy = drag.cy + (drag.start[1] - now[1]);
         schedule();
@@ -629,12 +919,11 @@
         if (wheelLock) return;
         wheelLock = true;
         setTimeout(() => (wheelLock = false), 140);
-        setZoom(state.view.zoomIndex + (e.deltaY > 0 ? 1 : -1));
+        setZoom(zoomIndex() + (e.deltaY > 0 ? 1 : -1));
       },
       { passive: false }
     );
-    let wheelLock = false;
-    host.addEventListener('dblclick', () => setZoom(state.view.zoomIndex - 1));
+    host.addEventListener('dblclick', () => setZoom(zoomIndex() - 1));
     host.addEventListener('dragover', (e) => {
       e.preventDefault();
       host.classList.add('is-drop');
@@ -649,16 +938,16 @@
   }
 
   function wireToolbar() {
+    const picker = $('#style-set');
+    picker.replaceChildren(...STYLE_SETS.map((s) => el('option', { value: s.id, text: s.name })));
+    picker.addEventListener('change', async () => {
+      if (!(await useSet(picker.value))) picker.value = state.set.id;
+    });
     for (const b of document.querySelectorAll('[data-set-mode]')) {
       b.addEventListener('click', () => {
         commitPending();
         state.mode = b.dataset.setMode;
-        afterSourceChange();
-      });
-    }
-    for (const b of document.querySelectorAll('[data-set-screen]')) {
-      b.addEventListener('click', () => {
-        state.screen = b.dataset.setScreen;
+        pickAvailable();
         afterSourceChange();
       });
     }
@@ -669,8 +958,8 @@
         schedule();
       });
     }
-    $('#zoom-in').addEventListener('click', () => setZoom(state.view.zoomIndex - 1));
-    $('#zoom-out').addEventListener('click', () => setZoom(state.view.zoomIndex + 1));
+    $('#zoom-in').addEventListener('click', () => setZoom(zoomIndex() - 1));
+    $('#zoom-out').addEventListener('click', () => setZoom(zoomIndex() + 1));
     $('#recentre').addEventListener('click', recentre);
     for (const id of ['route', 'traffic', 'labels']) {
       const box = $(`#layer-${id}`);
@@ -724,14 +1013,7 @@
       if (filePicker.files.length) openFiles([...filePicker.files]);
       filePicker.value = '';
     });
-    $('#back-to-stock').addEventListener('click', () => {
-      commitPending();
-      state.files = state.stockFiles;
-      state.source = 'stock';
-      restoreEdits();
-      pickAvailableMode();
-      afterSourceChange();
-    });
+    $('#back-to-stock').addEventListener('click', () => useSet(state.set.id));
 
     const menu = $('#export-menu');
     const toggle = $('#export-toggle');
@@ -749,7 +1031,6 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') close();
     });
-    $('#export-gz').disabled = !canGzip();
     $('#export-zip').addEventListener('click', () => {
       close();
       exportZip();
@@ -782,26 +1063,34 @@
       base: baseEntry,
       inScene,
       drawnNow: (names) => names.some((n) => renderer.drawn.has(n)),
-      isEdited: (n) => !!edits().entries[n],
-      isEditedAny: (key) => Object.keys(edits()[key]).length > 0,
-      isDtmEdited: (i) => edits().dtm[i] != null,
-      isTuningEdited: (n) => edits().tuning[n] != null,
+      isEdited,
+      hasOwnEdit,
+      isEditedAny: (key) => Object.keys(editsOf(state.mode, state.variant)[key]).length > 0,
+      isDtmEdited: (i) => !state.compare && dtmEdit(primary(), state.mode, state.variant, i) != null,
+      isTuningEdited: (n) => tuningEdit(primary(), state.mode, state.variant, n) != null,
+      variantNote,
       setSlot,
       reset: resetNames,
       beginEdit,
       commitEdit,
       dtm: () => styleFor().dtm(),
+      // As with colours: going back to the original needs no edit, unless a
+      // Standard-map edit would otherwise show through.
       setDtm: (i, hex) => {
+        const own = editsOf(state.mode, state.variant).dtm;
+        delete own[i];
+        const inherited = dtmEdit(primary(), state.mode, state.variant, i);
         const base = primary().dtm[i];
-        if (base && base.color === hex) delete edits().dtm[i];
-        else edits().dtm[i] = hex;
+        if (!(base && base.color === hex && !inherited)) own[i] = hex;
         schedule();
         persistSoon();
       },
       tuning: (n) => styleFor().tuning(n),
       setTuning: (n, v) => {
-        if (primary().tuning.get(n) === String(v)) delete edits().tuning[n];
-        else edits().tuning[n] = String(v);
+        const own = editsOf(state.mode, state.variant).tuning;
+        delete own[n];
+        const inherited = tuningEdit(primary(), state.mode, state.variant, n);
+        if (!(primary().tuning.get(n) === String(v) && inherited == null)) own[n] = String(v);
         schedule();
         persistSoon();
       },
@@ -810,59 +1099,50 @@
     wireToolbar();
     wireStage();
     recentre();
-    loadLabelFonts();
 
-    const files = await loadStock();
-    state.stockFiles = files;
     $('.stage').classList.remove('is-loading');
-    if (!files.length) {
+    const ok = await useSet(STYLE_SETS[0].id);
+    if (!ok) {
       $('#export-toggle').disabled = true;
       $('.stage').classList.add('is-empty');
       $('[data-source]').textContent = 'Open your MapConfig files to start';
       $('[data-list]').replaceChildren(
         el('p', { class: 'empty' }, [
-          'The stock styles in mapstyles/ could not be loaded. This happens when the page is opened straight from disk. Open the .mxf or .mxf.gz files from a MapConfigs folder with ',
+          'The stock styles could not be loaded. This happens when the page is opened straight from disk. Open the .mxf or .mxf.gz files from a MapConfigs folder with ',
           el('strong', { text: 'Open files' }),
           ', or serve the repository folder (for example ',
-          el('code', { text: 'python3 -m http.server' }),
+          el('code', { text: 'npx http-server' }),
           ') and open /previewer/.',
         ])
       );
       return;
     }
-    state.files = files;
-    state.source = 'stock';
-    restoreEdits();
-    pickAvailableMode();
-    setZoom(state.view.zoomIndex);
-    afterSourceChange();
     setInterval(updateScreenChrome, 30000);
   }
 
-  // The VW fonts ship in mapstyles/Font; use them for labels when they're there.
-  function loadLabelFonts() {
+  // Labels use the fonts named in the set's font config, from its Font folder.
+  function loadLabelFonts(set, loaded) {
     if (document.fonts) document.fonts.ready.then(schedule);
-    if (!('FontFace' in window) || window.MIB_LABEL_FONTS === false) return;
-    const faces = [
-      ['VWTextCarUI-Regular.ttf', 400],
-      ['VWTextCarUI-Bold.ttf', 600],
-      ['VWTextCarUI-Light.ttf', 300],
-    ];
-    const tryBase = (i) => {
-      if (i >= BASES.length) return; // not available here: labels use the fallback stack
-      const loads = faces.map(([file, weight]) => new FontFace('VWTextCarUI', `url(${BASES[i]}Font/${file})`, { weight: String(weight) }).load());
-      Promise.all(loads)
-        .then((fonts) => {
-          fonts.forEach((f) => document.fonts.add(f));
-          schedule();
-        })
-        .catch(() => tryBase(i + 1));
-    };
-    tryBase(0);
+    if (!('FontFace' in window) || window.MIB_LABEL_FONTS === false || !loaded.fontDefs) return;
+    const seen = new Set();
+    const loads = [];
+    for (const def of loaded.fontDefs.values()) {
+      const key = `${def.face}|${def.path}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const face = new FontFace(def.face, `url("${loaded.root}${set.dir}${def.path}")`, { weight: String(MIB.mxf.fontWeight(def.path)) });
+      loads.push(
+        face.load().then(
+          (f) => document.fonts.add(f),
+          () => null /* not available here: labels use the fallback stack */
+        )
+      );
+    }
+    Promise.all(loads).then(schedule);
   }
 
   // For poking at the previewer from the browser console.
-  MIB.debug = { state, get renderer() { return renderer; }, schedule };
+  MIB.debug = { state, get renderer() { return renderer; }, schedule, editsForFile };
 
   document.addEventListener('DOMContentLoaded', boot);
 })((window.MIB = window.MIB || {}));

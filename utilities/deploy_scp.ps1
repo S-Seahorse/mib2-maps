@@ -1,62 +1,101 @@
+# Builds a deploy folder from a map style folder and, with -deploy, copies it to the head unit.
+#
+# Set up for the 2017 Audi A4 with MMI Navigation plus (Australia): it stages the stock Audi
+# styles in mapstyles-audidefault, swaps in MapConfigs exported from the previewer
+# (-mapConfigs), and copies the result to the head unit over SSH.
+#
+# The Audi style folder on the head unit hasn't been confirmed on an A4 yet. Run with -list to
+# see the map style folders on the unit, then pass the right one with -destPath. Deploying stops
+# if that folder doesn't exist, so nothing lands in the wrong place.
 param (
   [switch] $deploy = $false,
-  [switch] $backup = $false
+  [switch] $backup = $false,
+  [switch] $list = $false,
+  [string] $styles = 'mapstyles-audidefault',
+  [string] $mapConfigs = '',
+  [string] $destPath = '/mnt/app/navigation/resources/app/audi/aus/',
+  [switch] $vwBuilder = $false
 )
-$destPath = '/mnt/app/navigation/resources/app/vw/aus/';
+
+$navRoot = '/mnt/app/navigation/resources/app/';
+if ($destPath -notmatch '/$') { $destPath += '/' }
+
+if ($list) {
+  Write-Host "Map style folders on the head unit:";
+  &ssh mib2 "ls -d $navRoot*/*/";
+  exit $LASTEXITCODE;
+}
 
 #directories
 $projectRoot = "$(&git rev-parse --show-toplevel)";
 
-$mapBuilder = "$projectRoot/mib2-mapbuilder";
-$mapConfigSrc = "$mapBuilder/rendered";
+$styleSrc = Join-Path $projectRoot $styles;
 $stagingDir = "$projectRoot/deploy";
-$mapStyleSrc = "$projectRoot/mapstyles";
+$mapBuilder = "$projectRoot/mib2-mapbuilder";
 
 #backup
-$backupName = '{0:yyyyMMdd-HHMMss}' -f (Get-Date);
+$backupName = '{0:yyyyMMdd-HHmmss}' -f (Get-Date);
 $backupRoot = "$projectRoot/backup";
 $backupDir = "$backupRoot/$($backupName)";
 
-Write-Host "Creating Directories";
-New-Item -ItemType Directory $stagingDir -ErrorAction SilentlyContinue | Out-Null;
-New-Item -ItemType Directory $backupRoot -ErrorAction SilentlyContinue | Out-Null;
-
-Write-Host "Directories:";
-Write-host "--> MapConfig Source: $mapConfigSrc";
-Write-host "--> Staging target: $stagingDir";
-if($deploy -eq $true -and $backup -eq $true) {
-  Write-host "--> Backup target: $backupDir";
+if (-not (Test-Path $styleSrc)) {
+  Write-Error "Style folder not found: $styleSrc";
+  exit 1;
 }
 
-# Create folder of current release
-# Copy file tree of AUS folder 
+Write-Host "Directories:";
+Write-host "--> Style source: $styleSrc";
+Write-host "--> Staging target: $stagingDir";
+if($deploy -eq $true) {
+  Write-host "--> Head unit target: $destPath";
+  if($backup -eq $true) {
+    Write-host "--> Backup target: $backupDir";
+  }
+}
 
 Write-Host "Begin Staging build";
-Write-Host "--> Building MapConfigs";
-&npm run --silent --prefix $mapBuilder buildmaps;
-Write-Host "--> MapConfigs generated";
 Write-Host "--> Emptying Staging Dir";
-Remove-Item -Path "$stagingDir/*" -Recurse | out-null;
-New-Item -ItemType Directory "$stagingDir/MapConfigs" | out-null;
+Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue;
+New-Item -ItemType Directory $stagingDir | Out-Null;
 
-Write-Host "--> Populating Staging Dir"
-Copy-Item -Path ($mapStyleSrc + "/exitview") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/Font") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/gui") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/guidanceview") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/intersectionmap") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapConfigSrc + "/*") -Destination "$stagingDir/MapConfigs/" -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/MapConfigs/*.fcx") -Destination "$stagingDir/MapConfigs/" | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/MapConfigs/*.csv.gz") -Destination "$stagingDir/MapConfigs/" | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/Models") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/pcconfig") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/poi") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/res") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/roadicon") -Destination $stagingDir -Recurse -Exclude ("*.ps1", "*Copy*", "*.gz")| Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/signpost") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/textures") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/tti") -Destination $stagingDir -Recurse | Out-Null;
-Copy-Item -Path ($mapStyleSrc + "/*.*") -Destination $stagingDir -Exclude ("*original*", "*.ps1", "*.md", "*.py", "*.sh")| Out-Null;
+# The style folder is a copy of the one on the head unit, so stage all of it.
+Write-Host "--> Copying $styles";
+Copy-Item -Path "$styleSrc/*" -Destination $stagingDir -Recurse;
+Get-ChildItem -Path $stagingDir -Recurse -Force -Include '.DS_Store', '*.md', '*.ps1' | Remove-Item -Force;
+
+if($vwBuilder -eq $true) {
+  # mib2-mapbuilder only writes VW Discover Pro configs (1280x640 and kombi files).
+  Write-Host "--> Building MapConfigs with mib2-mapbuilder";
+  &npm run --silent --prefix $mapBuilder buildmaps;
+  Copy-Item -Path "$mapBuilder/rendered/*" -Destination "$stagingDir/MapConfigs/" -Recurse -Force;
+}
+
+if($mapConfigs) {
+  # Accept the unzipped export (which holds a MapConfigs folder) or the MapConfigs folder itself.
+  $configSrc = $mapConfigs;
+  if (Test-Path (Join-Path $configSrc 'MapConfigs')) { $configSrc = Join-Path $configSrc 'MapConfigs' }
+  if (-not (Test-Path $configSrc)) {
+    Write-Error "MapConfigs folder not found: $mapConfigs";
+    exit 1;
+  }
+  $configSrc = (Resolve-Path $configSrc).Path;
+  Write-Host "--> Using MapConfigs from $configSrc";
+  $unpacked = 0;
+  Get-ChildItem -Path $configSrc -Recurse -File -Include '*.mxf', '*.mxf.gz' | ForEach-Object {
+    $rel = $_.FullName.Substring($configSrc.Length).TrimStart('\', '/');
+    $target = Join-Path "$stagingDir/MapConfigs" $rel;
+    # An unpacked .mxf replaces the stock .mxf.gz of the same name, and the other way round.
+    $twin = if ($target.EndsWith('.gz')) { $target.Substring(0, $target.Length - 3) } else { "$target.gz" };
+    if ((Test-Path $twin) -and -not $target.EndsWith('.gz')) { $unpacked++ }
+    Remove-Item -Path $twin -ErrorAction SilentlyContinue;
+    New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null;
+    Copy-Item -Path $_.FullName -Destination $target -Force;
+    Write-Host "    $rel";
+  }
+  if ($unpacked -gt 0) {
+    Write-Warning "$unpacked unpacked .mxf files replace .mxf.gz files. Copying doesn't delete the .mxf.gz files already on the head unit; export with the original .mxf.gz names to replace them.";
+  }
+}
 
 Write-host "--> Storing commit point in commit.txt";
 $hash = &git rev-parse HEAD;
@@ -66,25 +105,29 @@ Write-Host "Staging build complete";
 
 if($deploy -eq $true) {
   Write-Host "Begin Deploy to MIB2";
+  &ssh mib2 "test -d $destPath";
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "$destPath doesn't exist on the head unit. Run with -list to find the map style folder and pass it with -destPath.";
+    exit 1;
+  }
   if($backup -eq $true) {
     Write-Host "-->Performing backup";
-    New-Item -ItemType Directory $backupDir | Out-Null;
-    scp -r mib2:$destPath $backupDir;
+    New-Item -ItemType Directory -Force $backupDir | Out-Null;
+    &scp -r "mib2:$destPath" $backupDir;
   }
   Write-Host "-->making mount-point writable";
   &ssh mib2 mount -uw /net/mmx/mnt/app;
 
-  #Write-Host "--> emptying nav folder on mib2";
-  #ssh mib2 rm -rf /mnt/app/navigation/resources/app/vw/aus/*;
-
   write-host "--> Copying to mib2";
-  &scp -r $stagingDir/* mib2:/mnt/app/navigation/resources/app/vw/aus/;
+  # List the staged items rather than passing a wildcard, which PowerShell doesn't expand for scp.
+  $items = Get-ChildItem -Path $stagingDir | ForEach-Object { $_.FullName };
+  &scp -r @items "mib2:$destPath";
 
   write-host "--> making mount-point read-only";
   &ssh mib2 mount -ur /net/mmx/mnt/app;
 
   write-host "--> Restarting AppStartATF";
-  ssh mib2 slay AppStartATF;
+  &ssh mib2 slay AppStartATF;
   Write-Host "MIB Deploy complete";
 }
 Write-Host "Finished";

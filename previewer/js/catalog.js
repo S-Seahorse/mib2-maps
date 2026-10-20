@@ -60,6 +60,8 @@
     weather_label: 'Weather labels',
     poi_fuelprice_label: 'Fuel prices',
     point_name_highlight: 'Highlighted place name',
+    satcopyright_text_color: 'Satellite imagery credit',
+    satcopyright_background_color: 'Satellite credit background',
     manoeuvre_arrowfirst: 'Next turn arrow',
     manoeuvre_arrownormal: 'Turn arrow',
     manoeuvre_arrow_shadow: 'Turn arrow shadow',
@@ -107,7 +109,8 @@
   // What the two colour slots mean for each kind of entry.
   const SLOTS = {
     area: { pen: 'Edge', brush: 'Fill', only: 'brush', note: 'Area edges are not drawn by the head unit.' },
-    sky: { pen: 'Colour', brush: 'Fill', only: 'pen', note: 'The sky and haze use their outline colour; this fill is not drawn.' },
+    sky: { pen: 'Horizon', brush: 'Sky' },
+    haze: { pen: 'Haze if fill hidden', brush: 'Haze' },
     line: { pen: 'Casing', brush: 'Fill' },
     label: { pen: 'Halo', brush: 'Text' },
     route: { pen: 'Line', brush: 'Centre' },
@@ -122,7 +125,7 @@
     { id: 'buildings', title: 'Buildings and structures', slots: 'area', names: ['building', 'city_models', 'bridge', 'bridge_shadow', 'elevated', 'tunnel'] },
     { id: 'roads', title: 'Roads', slots: 'line', names: [...ROAD_CLASSES, 'pedestrianzone', 'footway', 'restricted_road', 'enclosed_traffic_area_road', 'one_way_street', 'one_way_arrows', 'hiking_trail_main', 'hiking_trail_bike', 'hiking_trail_fixed_rope'] },
     { id: 'rail', title: 'Rail and ferry', slots: 'line', names: ['railway', 'suburban_train', 'subway', 'tramway', 'cartrain', 'ferry'] },
-    { id: 'labels', title: 'Labels', slots: 'label', match: /_label$/, names: ['point_name_highlight'] },
+    { id: 'labels', title: 'Labels', slots: 'label', match: /_label$/, names: ['point_name_highlight', 'satcopyright_text_color', 'satcopyright_background_color'] },
     { id: 'route', title: 'Route', slots: 'route', names: ['route_blocking'], bulk: 'route' },
     { id: 'traffic', title: 'Traffic', slots: 'traffic', match: /^speed_and_flow_/, bulk: 'traffic' },
     { id: 'guidance', title: 'Guidance', slots: 'plain', names: ['manoeuvre_arrowfirst', 'manoeuvre_arrownormal', 'manoeuvre_arrow_shadow', 'manoeuvre_marker', 'lane_guidance_marker', 'direction_arrow', 'motorway_exit_marker', 'bread_crumb_trail', 'edge_highlighting'], match: /^rdv_/, bulk: 'guidance' },
@@ -203,7 +206,9 @@
         if (!entries.has(name) || used.has(name)) continue;
         take(name);
         if (name === 'sky_background' || name === 'fog') {
-          rows.push({ id: name, label: humanise(name), sub: name, primary: name, members: [name], slots: SLOTS.sky });
+          rows.push({ id: name, label: humanise(name), sub: name, primary: name, members: [name], slots: name === 'fog' ? SLOTS.haze : SLOTS.sky });
+        } else if (name === 'satcopyright_background_color') {
+          rows.push({ id: name, label: humanise(name), sub: name, primary: name, members: [name], slots: SLOTS.plain });
         } else if (ROAD_CLASSES.includes(name)) {
           const variants = ROAD_VARIANTS.map((v) => `${name}_${v}`).filter((v) => entries.has(v) && !used.has(v));
           variants.forEach(take);

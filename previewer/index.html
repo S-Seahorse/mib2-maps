@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MIB2 Map Style Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Preview and recolour the MIB2 navigation map styles in mapstyles/, then export a MapConfigs folder for the head unit.">
+<meta name="description" content="Preview and recolour the MIB2 navigation map styles for the Audi A4 MMI Navigation plus, then export a MapConfigs folder for the head unit.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Saira+Semi+Condensed:wght@500;600;700&display=swap">
@@ -43,7 +43,7 @@
           <strong>MapConfigs folder</strong>
           <span>A .zip of every loaded file with your colours, ready to copy to the head unit</span>
         </button>
-        <label class="menu-check"><input type="checkbox" id="export-gz"> Keep files gzipped (.mxf.gz), like mapstyles/</label>
+        <label class="menu-check"><input type="checkbox" id="export-plain"> Save unpacked (.mxf) instead of keeping the original .mxf.gz names</label>
         <button type="button" class="menu-item" id="export-theme">
           <strong>Colour theme</strong>
           <span>Just your changes, as JSON in the mib2-mapbuilder colour format</span>
@@ -59,10 +59,14 @@
 <main class="layout">
   <section class="stage is-loading" aria-label="Map preview">
     <div class="stage-bar">
+      <label class="select-label set-picker" for="style-set"><span class="visually-hidden">Style set</span>
+        <select id="style-set"></select>
+      </label>
       <div class="seg" role="group" aria-label="Day or night map">
         <button type="button" data-set-mode="day" aria-pressed="true">Day</button>
         <button type="button" data-set-mode="night" aria-pressed="false">Night</button>
       </div>
+      <div class="seg" role="group" aria-label="Map type" id="map-type"></div>
       <div class="seg" role="group" aria-label="Map perspective">
         <button type="button" data-set-dim="2d" aria-pressed="false">2D</button>
         <button type="button" data-set-dim="3d" aria-pressed="true">3D</button>
@@ -72,10 +76,7 @@
         <span class="zoom-label" data-zoom-label aria-live="polite">200 m</span>
         <button type="button" class="button ghost icon-only" id="zoom-out" aria-label="Zoom out">−</button>
       </div>
-      <div class="seg" role="group" aria-label="Screen size">
-        <button type="button" data-set-screen="1280x640" aria-pressed="true">1280×640</button>
-        <button type="button" data-set-screen="800x480" aria-pressed="false">800×480</button>
-      </div>
+      <div class="seg" role="group" aria-label="Screen" id="screen-seg"></div>
     </div>
 
     <div class="bezel">
@@ -112,7 +113,7 @@
         <button type="button" class="button ghost" id="recentre">Back to the car</button>
         <button type="button" class="button" id="compare" aria-pressed="false" title="Hold to see the original colours">Hold to compare</button>
       </div>
-      <p class="fineprint">Sample city “Ellery” is made up. Colours, line widths and zoom ranges come from the loaded file; route and traffic shapes are approximate.</p>
+      <p class="fineprint">Sample city “Ellery” is made up. Colours, line widths, zoom ranges and camera angles come from the loaded files; route and traffic shapes are approximate, and satellite imagery is simulated.</p>
     </div>
   </section>
 

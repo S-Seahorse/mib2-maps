@@ -35,8 +35,34 @@
   // Calibrated against img/stock-day.png: city names render about a third
   // larger than their font size; street names at their font size.
   const LABEL_SCALE = { city_label: 1.3, capital_city_label: 1.3 };
-  // The head unit's own font when mapstyles/Font is reachable, else Barlow (loaded by the page).
-  const FONT_STACK = '"VWTextCarUI", "Barlow", "Segoe UI", system-ui, sans-serif';
+  const AERIAL_LAND = '#4c5236';
+  const AERIAL = {
+    built_up: '#5f5a51',
+    industry: '#6d6a64',
+    company: '#625f57',
+    airport: '#6a6964',
+    aircraft: '#8b8a86',
+    park: '#3c5530',
+    golfcourse: '#4d6a39',
+    cemetery: '#45573a',
+    woodland: '#2d4325',
+    moor: '#55603d',
+    beach: '#b9a982',
+    island: '#4b5236',
+    stadium: '#4e6440',
+    railway_station: '#6f6c66',
+    pedestrian_area: '#77736b',
+    traffic_area_parking: '#55534f',
+    ocean: '#1c3442',
+    river: '#253f4c',
+    lake: '#234050',
+    canal: '#253f4c',
+    harbour_port: '#21394a',
+    industrial_harbour: '#21394a',
+  };
+  // After the face named in the font config (loaded from the style set's Font
+  // folder when it can be), labels fall back to Barlow, which the page loads.
+  const FONT_FALLBACK = '"Barlow", "Segoe UI", system-ui, sans-serif';
 
   class Renderer {
     constructor(host) {
@@ -58,7 +84,6 @@
       this.labelBoxes = [];
       this.style = null;
       this.view = null;
-      this.fontFamily = FONT_STACK;
       this.sizeCache = new Map();
       this.drawn = new Set();
     }
@@ -166,18 +191,23 @@
       const L = { Dw, Dh, s, dpr };
 
       if (v.threeD) {
-        // The camera looks down at 52° from vertical (the zoom table's tilt is
-        // 34° above the horizon). The map canvas ends a little below the
-        // horizon; haze covers the rest, as the head unit's far plane does.
-        const theta = (52 * Math.PI) / 180;
-        const Fy = 0.78 * Dh; // where the car sits on screen
-        const Yh = 0.06 * Dh; // horizon
-        const P = (Fy - Yh) * Math.tan(theta);
+        // The zoom table's tilt is the camera's angle above the horizon (it
+        // reaches 90°, straight down, at the widest zooms), so the view is
+        // (90° - tilt) from vertical: 56° for VW, 65° for the Audi MMI. A 30°
+        // field of view matches the perspective in img/stock-day.png. The map
+        // stops where it has shrunk to a quarter of its size at the car (the
+        // head unit's far plane) or just under the horizon; haze covers the rest.
+        const tilt = Math.max(10, Math.min(80, v.tilt || 34));
+        const theta = ((90 - tilt) * Math.PI) / 180;
+        const Fy = 0.72 * Dh; // where the car sits on screen
+        const P = Dh / 2 / Math.tan((15 * Math.PI) / 180);
+        const cot = 1 / Math.tan(theta);
+        const Yh = Fy - P * cot; // horizon; above the screen when negative
         const vAt = (Y) => {
           const dy = Y - Fy;
           return (dy * P) / (P * Math.cos(theta) + dy * Math.sin(theta));
         };
-        const Ytop = Yh + 0.15 * Dh;
+        const Ytop = Math.max(0, Yh + 0.08 * Dh, Fy - 0.75 * P * cot);
         const vTop = vAt(Ytop);
         const vBot = vAt(Dh) + 4;
         const scaleTop = P / (P - vTop * Math.sin(theta));
@@ -298,6 +328,16 @@
       ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+      if (this.view.satellite) {
+        if (!this.picking) this.paintAerial(ctx, scale);
+        this.worldTransform(ctx, scale);
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        this.paintLines(ctx, scene, res);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        return;
+      }
+
       // Land: map background, then the terrain colour map.
       const land = this.colour('map_background', 'brush') || '#808080';
       ctx.fillStyle = land;
@@ -352,6 +392,47 @@
         }
       }
 
+      this.paintLines(ctx, scene, res);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    // Satellite imagery isn't part of the style files, so the satellite map
+    // gets a stand-in: muted photo-like colours per land use with a speckle.
+    paintAerial(ctx, scale) {
+      const scene = MIB.scene;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = AERIAL_LAND;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      this.worldTransform(ctx, scale);
+      for (const a of scene.areas) {
+        const c = AERIAL[a.cls];
+        if (!c || !this.inView(a.box)) continue;
+        ctx.beginPath();
+        this.ringPath(ctx, a.ring);
+        ctx.fillStyle = c;
+        ctx.fill('evenodd');
+      }
+      ctx.beginPath();
+      for (const b of scene.buildings) if (this.inView(b.box)) this.ringPath(ctx, b.ring);
+      ctx.fillStyle = '#8a8781';
+      ctx.fill();
+      if (!this.speckle) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 96;
+        const g = c.getContext('2d');
+        const r = MIB.util.rng(5);
+        for (let i = 0; i < 1400; i++) {
+          g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.16)';
+          g.fillRect(Math.floor(r() * 96), Math.floor(r() * 96), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 3));
+        }
+        this.speckle = c;
+      }
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.fillStyle = ctx.createPattern(this.speckle, 'repeat');
+      ctx.fillRect(0, 0, this.L.Wm, this.L.Hm);
+    }
+
+    paintLines(ctx, scene, res) {
       const lines = scene.lines.filter((l) => this.inView(l.box));
       const byCls = (cls) => lines.filter((l) => l.cls === cls);
 
@@ -439,7 +520,6 @@
           if (core) this.strokeAll(ctx, [leg], core, w * 0.4);
         }
       }
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
     ringPath(ctx, ring) {
@@ -620,14 +700,18 @@
         this.screen.style.background = this.colour('map_background', 'brush') || '#000';
         return;
       }
-      const sky = this.colour('sky_background', 'pen') || '#7d93a8';
-      const haze = this.colour('fog', 'pen') || sky;
+      // The sky runs from its fill at the top to its outline colour at the
+      // horizon, and the haze uses the fog fill. Where a fill is hidden, as in
+      // the VW files, the outline colour stands in for it.
+      const top = this.colour('sky_background', 'brush') || this.colour('sky_background', 'pen') || '#7d93a8';
+      const horizon = this.colour('sky_background', 'pen') || top;
+      const haze = this.colour('fog', 'brush') || this.colour('fog', 'pen') || horizon;
       const L = this.L;
       const h = (y) => `${((y / L.Dh) * 100).toFixed(2)}%`;
       this.sky.hidden = false;
-      this.fog.hidden = false;
-      this.sky.style.background = `linear-gradient(to bottom, ${sky} 0%, ${haze} ${h(L.Yh + 2)}, ${haze} 100%)`;
-      this.fog.style.background = `linear-gradient(to bottom, ${haze} ${h(L.Ytop + 3)}, transparent ${h(L.Ytop + 0.14 * L.Dh)})`;
+      this.sky.style.background = L.Yh > 0 ? `linear-gradient(to bottom, ${top} 0%, ${horizon} ${h(L.Yh)}, ${haze} ${h(L.Yh + 2)}, ${haze} 100%)` : haze;
+      this.fog.hidden = !(L.Ytop > 0);
+      this.fog.style.background = `linear-gradient(to bottom, ${haze} ${h(L.Ytop + 3)}, transparent ${h(L.Ytop + 0.12 * L.Dh)})`;
       this.screen.style.background = haze;
     }
 
@@ -639,9 +723,9 @@
       const pick = fonts.length > 1 ? fonts.reduce((a, b) => ((a.size || 0) > (b.size || 0) === !!big ? a : b)) : fonts[0];
       const def = pick && this.style.fontDefs ? this.style.fontDefs.get(pick.id) : null;
       const size = def ? def.size : kind.includes('city') ? 28 : 20;
-      const face = def ? def.face : '';
-      const weight = /bold|semibold/i.test(face) ? 600 : /light/i.test(face) ? 300 : 400;
-      return { size: size * (LABEL_SCALE[kind] || 1), weight, outline: pick ? pick.outline : 1 };
+      const family = def ? `"${def.face}", ${FONT_FALLBACK}` : FONT_FALLBACK;
+      const weight = def ? MIB.mxf.fontWeight(def.path) : 400;
+      return { size: size * (LABEL_SCALE[kind] || 1), weight, family, outline: pick ? pick.outline : 1 };
     }
 
     paintOverlay() {
@@ -658,7 +742,7 @@
         [L.Dw * 0.89, L.Dh * 0.1, L.Dw, L.Dh * 0.3],
         [L.Dw * 0.89, L.Dh * 0.8, L.Dw, L.Dh],
       ];
-      const minY = this.view.threeD ? L.Ytop + 0.05 * L.Dh : -Infinity;
+      const minY = this.view.threeD ? L.Ytop + 0.04 * L.Dh : -Infinity;
 
       const project = (x, y) => {
         const [px, py] = this.toCanvas(x, y);
@@ -672,7 +756,7 @@
         // label scale factors differ by about 15%).
         const depth = this.view.threeD ? 0.85 + 0.15 * Math.max(0, Math.min(1, ((opts.w || 1) - 0.3) / 0.7)) : 1;
         const px = font.size * s * depth;
-        ctx.font = `${font.weight} ${px.toFixed(1)}px ${this.fontFamily}`;
+        ctx.font = `${font.weight} ${px.toFixed(1)}px ${font.family}`;
         const w = ctx.measureText(text).width;
         const box = [X - w / 2 - 3, Y - px * 0.8, X + w / 2 + 3, Y + px * 0.3];
         if (placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) return false;
@@ -713,6 +797,7 @@
         if (this.vis('destination')) marker(scene.destination.x, scene.destination.y, (X, Y) => this.drawFlag(ctx, X, Y, 14 * s * 1.6), 16 * s * 1.6);
       }
 
+      if (this.view.satellite) this.drawCopyright(ctx);
       if (!this.view.labels) return;
       const candidates = [];
       for (const l of scene.labels) {
@@ -723,7 +808,8 @@
       if (this.vis('road_names')) {
         const { along } = scene.helpers;
         for (const r of scene.roadNames) {
-          if (!this.lineVisible(r.cls)) continue;
+          // Audi configs also limit street names per road class.
+          if (!this.lineVisible(r.cls) || !this.vis(`road_name_dc_${r.cls}`)) continue;
           const major = ['motorway', 'dualcarriageway', 'expressway'].includes(r.cls);
           for (let i = 0; i < r.repeat; i++) {
             const p = along(r.line, (i + 0.5) / r.repeat);
@@ -751,6 +837,36 @@
           }
         }
       }
+    }
+
+    // The imagery credit the head unit shows on the satellite map.
+    drawCopyright(ctx) {
+      const L = this.L;
+      const text = this.colour('satcopyright_text_color', 'brush');
+      if (!text) return;
+      const font = this.fontFor('satcopyright');
+      const px = Math.max(9, font.size * L.s * 1.2);
+      ctx.font = `${font.weight} ${px.toFixed(1)}px ${font.family}`;
+      const label = '© Imagery (simulated in this preview)';
+      const w = ctx.measureText(label).width;
+      const x = 10 * L.s;
+      const y = L.Dh - 10 * L.s;
+      const bg = this.colour('satcopyright_background_color', 'brush');
+      if (bg) {
+        ctx.fillStyle = bg;
+        ctx.fillRect(x - 4, y - px, w + 8, px * 1.35);
+      }
+      const halo = this.colour('satcopyright_text_color', 'pen');
+      ctx.textAlign = 'left';
+      ctx.lineJoin = 'round';
+      if (halo) {
+        ctx.strokeStyle = halo;
+        ctx.lineWidth = 2.5;
+        ctx.strokeText(label, x, y);
+      }
+      ctx.fillStyle = text;
+      ctx.fillText(label, x, y);
+      this.labelBoxes.push({ box: [x - 4, y - px, x + w + 4, y + px * 0.35], name: 'satcopyright_text_color' });
     }
 
     drawCar(ctx, X, Y, r) {
@@ -822,8 +938,8 @@
         if (X >= b[0] && X <= b[2] && Y >= b[1] && Y <= b[3]) return this.labelBoxes[i].name;
       }
       if (this.view.threeD) {
-        if (Y < this.L.Yh + 2) return 'sky_background';
-        if (Y < this.L.Ytop + 4) return 'fog';
+        if (this.L.Yh > 0 && Y < this.L.Yh + 1) return 'sky_background';
+        if (this.L.Ytop > 0 && Y < this.L.Ytop + 4) return 'fog';
       }
       const scale = 0.5;
       if (this.pickDirty) {
