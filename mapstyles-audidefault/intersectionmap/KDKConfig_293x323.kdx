@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ExitViewConfig>
+  <!-- Road geometry -->
+  <!-- The with of the lanes in world units (e.g. meters) -->
+  <sizeArray name="LaneWidth" value="18.0 16.0 14.0 12.0 11.0 5.0 4.5" />
+  <!-- The height differece between z-levels of roads (e.g. bridge height) -->
+  <size name="ZLevelHeight" value="0.1" />
+  <!-- Deactivates the EatUp and the visibility of the carsor in small roundabouts. -->
+  <bool name="AvoidEatupOnSmallRoundabout" value="1" />
+  <!-- Arrows -->
+  <!-- The width of the arrow's line. This is the total width, including outline
+  and fill of the arrow -->
+  <size name="ArrowLineWidth" value="12" />
+  <size name="ArrowLineInnerWidth" value="8" />
+  <!-- The width of the arrow head -->
+  <size name="ArrowHeadWidth" value="24" />
+  <!-- The length of the arrow head -->
+  <size name="ArrowHeadLength" value="42" />
+  <!-- The height of the arrow's body -->
+  <size name="ArrowHeight" value="4" />
+  <!-- The height of the arrow above the road -->
+  <size name="ArrowZOffset" value="2" />
+  <size name="MinArrowLineWidth" value="12" />
+  <size name="MaxArrowLineWidth" value="18" />
+  <size name="MaxRouteLengthAfterManeuver" value="200.0" />
+  <!-- Set this to 1 in order to use the extruded 3D arrow -->
+  <bool name="ArrowUse3DArrow" value="1" />
+  <!-- If Use3DArrow is set to 1 this setting controls the extend of the bevel.
+  Note that this value is not a percentage but an absolute value. -->
+  <size name="ArrowBevelRadius" value="1.0" />
+  <!-- Carsor-->
+  <!-- CarsorPreTransformation is a scale by 52.5. To change scale, multiply items
+  0, 5 and A with a factor. To change height above the road, modify item B -->
+  <floatArray name="CarsorPreTransformation" value="52.5 0.0 0.0 0.0 0.0 52.5 0.0 0.0 0.0 0.0 52.5 1.3 0.0 0.0 0.0 1.0" />
+  <!--    0    1   2   3   4    5   6   7   8   9    A   B   C   D   E   F  -->
+  <!-- Markings-->
+  <!-- The width of the markings at the outer border of the street -->
+  <sizeArray name="BorderMarkingWidth" value="4.0 3.6 3.2 3.1 3.0 1.6 1.5" />
+  <!-- ManeuverCombining -->
+  <number name="MaxCombinationDistance" value="50" />
+  <bool name="UseCombineHints" value="1" />
+  <!-- Fog -->
+  <!-- the distance from the camera at which the fog starts -->
+  <size name="FogStart" value="700" />
+  <!-- the distance from the camera at which the fog ends. Everything
+  that is further away than this distance is no more visible because of the fog
+  -->
+  <size name="FogEnd" value="1400" />
+  <!-- Colors -->
+  <color name="RecommendedArrowColor" value="0x0073FF" />
+  <color name="RecommendedArrowFillColor" value="0x73F6FF" />
+  <color name="GroundColor" value="0x253D46" />
+  <!-- Use this to make the background more (smaller value) or less (larger value) transparent. Values range from 0 to 255. -->
+  <!-- This does not work with edge fading enabled, if you want edge fading and a transparent background please use the guidanceview background instead -->
+  <!--<number name="GroundAlpha" value="255" />-->
+  <color name="FogColor" value="0x101315" />
+  <bool name="DrawGround" value="0" />
+  <!-- The road color and marking color can be configured for each road class. Order of the items:
+  Motorway, Dualcarriageway, Expressway, CountryRoad, UrbanRoad, Pedestrianzone, Footway -->
+  <!-- basic configuration of road color: same color for all streets 
+  <colorArray name="RoadColor"               value="0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C" />
+  <colorArray name="BorderMarkingColor"      value="0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9" />
+  <colorArray name="RoadColorFaded"          value="0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C 0x8C8C8C" />
+  <colorArray name="BorderMarkingColorFaded" value="0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9 0xD8D9D9" />
+  -->
+  <!-- alternative configuration: color for each road class, NO fading
+  <colorArray name="RoadColor"               value="0xdcdcdc 0x8c8c8c 0x5a5a5a 0x5a5a5a 0x505050 0x505050 0x505050"/>
+  <colorArray name="BorderMarkingColor"      value="0x787878 0xdcdcdc 0x8c8c8c 0x8c8c8c 0x787878 0x505050 0x505050" />
+  <colorArray name="RoadColorFaded"          value="0xdcdcdc 0x8c8c8c 0x5a5a5a 0x5a5a5a 0x505050 0x505050 0x505050"/>
+  <colorArray name="BorderMarkingColorFaded" value="0x787878 0xdcdcdc 0x8c8c8c 0x8c8c8c 0x787878 0x505050 0x505050" />
+  -->
+  <!-- alternative configuration: color for each road class, WITH fading -->
+  <colorArray name="RoadColor" value="0xdcdcdc 0x8c8c8c 0x5a5a5a 0x5a5a5a 0x505050 0x505050 0x505050" />
+  <colorArray name="BorderMarkingColor" value="0x787878 0xdcdcdc 0x8c8c8c 0x8c8c8c 0x787878 0x505050 0x505050" />
+  <colorArray name="RoadColorFaded" value="0x222d31 0x222d31 0x222d31 0x222d31 0x222d31 0x222d31 0x222d31" />
+  <colorArray name="BorderMarkingColorFaded" value="0x293539 0x293539 0x293539 0x293539 0x293539 0x222d31 0x222d31" />
+  <!-- -->
+  <!-- Camera -->
+  <!-- Coordinate system:
+  The origin (0,0,0) of the coordiante system is at the maneuver point. +z is
+  the up direction, +y is the look direction, +x is right -->
+  <position name="CameraPosition" x="0" y="-430" z="300" />
+  <float name="CameraScale" value="1.0" />
+  <!-- Defines the default camera target (i.e. where the camera looks) Change
+  this only, if the camera should not look directly at the menuver point -->
+  <position name="CameraTarget" x="0" y="0" z="0" />
+  <!-- The angle of the camera's field of view -->
+  <size name="CameraAngle" value="22" />
+  <float name="CameraNearD" value="1.0" />
+  <float name="CameraFarD" value="1025" />
+  <!-- The direction of the light -->
+  <position name="LightDirection" x="0" y="1" z="-5" />
+  <!--<position name="LightDirection" x="3" y="-4" z="-1" />-->
+  <bool name="BoundariesRelativeToFreeArea" value="1" />
+  <!-- M 0.02,0.97 L 0.98,0.97 L 0.98,0.02 L 0.02,0.02-->
+  <points2D name="RoundaboutDisplayRouteBoundary" x0="0.02" y0="0.97" x1="0.98" y1="0.97" x2="0.98" y2="0.02" x3="0.02" y3="0.02" />
+  <!-- M 0.25,0.77 L 0.75,0.77 L 0.72,0.17 L 0.28,0.17 -->
+  <points2D name="RoundaboutDisplayBoundary" x0="0.25" y0="0.77" x1="0.75" y1="0.77" x2="0.72" y2="0.17" x3="0.28" y3="0.17" />
+  <!-- M 0.08,0.92 L 0.92,0.92 L 0.87,0.07 L 0.13,0.07 -->
+  <points2D name="ComplexManeuverBoundary" x0="0.08" y0="0.92" x1="0.92" y1="0.92" x2="0.87" y2="0.07" x3="0.13" y3="0.07" />
+  <!-- M 0.15,0.81 L 0.85,0.81 L 0.8,0.11 L 0.2,0.11 -->
+  <points2D name="CombinedManeuverBoundary" x0="0.15" y0="0.81" x1="0.85" y1="0.81" x2="0.80" y2="0.11" x3="0.20" y3="0.11" />
+  <floatArray name="SingleManeuverPosition" value="0.5 0.6" />
+  <floatArray name="ComplexManeuverPosition" value="0.5 0.6" />
+  <floatArray name="RoundaboutManeuverPosition" value="0.5 0.6" />
+  <floatArray name="CombinedManeuverPosition" value="0.5 0.6" />
+  <floatArray name="RoundaboutCentrePosition" value="0.5 0.6" />
+  <floatArray name="CombinedManeuverScaleRange" value="1.0 1.5" />
+  <floatArray name="ComplexManeuverScaleRange" value="1.0 1.5" />
+  <floatArray name="RampScaleRange" value="0.8 1.5" />
+  <floatArray name="CarsorScaleRange" value="0.8 1.5" />
+  <number name="RoundaboutSegmentNumber" value="32" />
+  <number name="AnimationTime" value="1500" />
+  <number name="AnimationStepNumber" value="20" />
+  <number name="CarExtrapolationInterval" value="100" />
+  <!-- If set to 1, roads with more lanes will be wider. If set to 0, the number
+  of lanes will be ignored -->
+  <bool name="ConsiderLaneNumberForStreetWidth" value="0" />
+  <!-- If set to 1, two separate KDK's will be schown for big roundabouts. If
+  set to 0, it will be shown in one single KDK -->
+  <bool name="Use2CamerasForBigRoundabouts" value="1" />
+  <!-- If set to 1, streets will be drawn as lines (like in the map) in case they are too
+  close to each other to find intersections -->
+  <bool name="FallbackEnabled" value="1" />
+  <!-- If set to 1, streets will be drawn thinner when scale is bigger and thicker
+  when scale is smaller. This makes the width constant in screen space -->
+  <bool name="ScaleStreetDependingOnCameraScale" value="1" />
+  <size name="MinWidthScale" value="0.7" />
+  <size name="ZMinDist" value="0.01" />
+  <varFloatArray name="AlternativeCameraPositions" value="0.4 0.0 -300.0 600.0" />
+  <!-- If this is 1, the route (=arrow) color will be taken from the MapConfig. 
+  If this 0, the route color will be RecommendedArrowColor/RecommendedArrowFillColor
+  from this file  -->
+  <bool name="UseRouteColorFromMapConfig" value="0" />
+</ExitViewConfig>

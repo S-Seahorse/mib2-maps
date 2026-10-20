@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xmlfontconfig>
+  <fontconfig name="fontconfig_default_0">
+    <!-- font for HMI, ID = 2 -->
+    <fontdefinition type="freetype" face="AudiType" size="15" format="0" id="2">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- road font, ID = 101 -->
+    <fontdefinition type="freetype" face="AudiType" size="12" format="0" id="101">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- city font, ID = 100 -->
+    <fontdefinition type="freetype" face="AudiType" size="10" format="0" id="100">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- smaller 3D font, ID = 103 -->
+    <fontdefinition type="freetype" face="AudiType" size="16" format="0" id="103">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- larger 3D font, ID = 104 -->
+    <fontdefinition type="freetype" face="AudiType" size="20" format="0" id="104">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- larger 3D font, ID = 105 -->
+    <fontdefinition type="freetype" face="AudiType" size="22" format="0" id="105">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- larger 3D font, ID = 106 -->
+    <fontdefinition type="freetype" face="AudiType" size="24" format="0" id="106">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- road font, ID = 32 -->
+    <fontdefinition type="freetype" face="AudiType" size="15" format="0" id="32">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- road font, ID = 33 -->
+    <fontdefinition type="freetype" face="AudiType" size="14" format="0" id="33">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- road font, ID = 34 -->
+    <fontdefinition type="freetype" face="AudiType" size="12" format="0" id="34">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- road font, ID = 35 -->
+    <fontdefinition type="freetype" face="AudiType" size="11" format="0" id="35">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- road font, ID = 36 -->
+    <fontdefinition type="freetype" face="AudiType" size="10" format="0" id="36">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- GuidanceView road font, ID = 50 -->
+    <fontdefinition type="freetype" face="AudiType" size="18" format="0" id="50">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- GuidanceView Distance font, ID = 51 -->
+    <fontdefinition type="freetype" face="AudiType" size="18" format="0" id="51">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- GuidanceView Distance font - small, ID = 52 -->
+    <fontdefinition type="freetype" face="AudiType" size="12" format="0" id="52">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- GuidanceView ttipoi maintext font, ID = 53 -->
+    <fontdefinition type="freetype" face="AudiType" size="11" format="0" id="53">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+    <!-- GuidanceView Time font - small, ID = 54 -->
+    <fontdefinition type="freetype" face="AudiType" size="10" format="0" id="54">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighBold.ttf" />
+    </fontdefinition>
+    <!-- Satellite image copyright font, ID = 55 -->
+    <fontdefinition type="freetype" face="AudiType" size="9" format="0" id="55">
+      <style val="Semi Extended" />
+      <path val="Font/AudiTypeDisplayHighNormal.ttf" />
+    </fontdefinition>
+  </fontconfig>
+</xmlfontconfig>
